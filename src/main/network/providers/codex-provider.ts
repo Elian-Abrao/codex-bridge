@@ -1,5 +1,6 @@
 import type { StreamEvent, StreamRequest } from "../../../shared/network.js";
 import { CODEX_ORIGINATOR } from "../../auth/provider-definitions.js";
+import { CODEX_DEFAULT_INSTRUCTIONS } from "./codex-default-instructions.js";
 import type {
   PreparedRequest,
   ProviderAdapter,
@@ -18,6 +19,15 @@ function collectSystemMessages(messages: StreamRequest["messages"]): string | un
     .filter(Boolean);
 
   return system.length > 0 ? system.join("\n\n") : undefined;
+}
+
+function buildCodexInstructions(messages: StreamRequest["messages"]): string {
+  const systemInstructions = collectSystemMessages(messages);
+  if (!systemInstructions) {
+    return CODEX_DEFAULT_INSTRUCTIONS;
+  }
+
+  return `${CODEX_DEFAULT_INSTRUCTIONS}\n\n## User-defined instructions\n\n${systemInstructions}`;
 }
 
 function buildResponsesInput(messages: StreamRequest["messages"]): Array<Record<string, unknown>> {
@@ -128,7 +138,8 @@ export class CodexProviderAdapter implements ProviderAdapter {
       body: JSON.stringify({
         model: context.request.model,
         stream: true,
-        instructions: collectSystemMessages(context.request.messages),
+        store: false,
+        instructions: buildCodexInstructions(context.request.messages),
         input: buildResponsesInput(context.request.messages)
       })
     };

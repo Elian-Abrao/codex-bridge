@@ -161,7 +161,7 @@ export class AuthService extends EventEmitter<AuthServiceEvents> {
 
     try {
       pending.callbackServer = new LocalCallbackServer({
-        host: provider.redirectHost,
+        host: provider.bindHost,
         port: provider.redirectPort,
         callbackPath: provider.redirectPath,
         cancelPath: "/auth/cancel",

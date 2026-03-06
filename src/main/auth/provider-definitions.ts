@@ -8,6 +8,7 @@ export type OAuthProviderDefinition = {
   id: "codex";
   clientId: string;
   issuer: string;
+  bindHost: string;
   redirectHost: string;
   redirectPort: number;
   redirectPath: string;
@@ -19,7 +20,8 @@ export const CODEX_OAUTH_PROVIDER: OAuthProviderDefinition = {
   id: "codex",
   clientId: CODEX_CLIENT_ID,
   issuer: OPENAI_AUTH_ISSUER,
-  redirectHost: "127.0.0.1",
+  bindHost: "127.0.0.1",
+  redirectHost: "localhost",
   redirectPort: 1455,
   redirectPath: "/auth/callback",
   scopes: [

@@ -138,13 +138,35 @@ async function ensureAuthenticated(baseUrl: string): Promise<AuthStateSnapshot> 
 
     const callback = (
       await rl.question(
-        "Pressione Enter quando concluir o login. Se o callback automatico falhar, cole aqui a URL final de redirect: "
+        "Se o navegador mostrar 'Codex login complete', apenas pressione Enter. Cole a URL final de redirect somente se o callback automatico falhar: "
       )
     ).trim();
 
     if (callback) {
-      await client.completeLogin(callback);
-      return client.getAuthState();
+      const stateBeforeManualCompletion = await client.getAuthState();
+      if (stateBeforeManualCompletion.session) {
+        return stateBeforeManualCompletion;
+      }
+
+      try {
+        const completedState = await client.completeLogin(callback);
+        if (completedState.session) {
+          return completedState;
+        }
+      } catch (error) {
+        const stateAfterManualCompletion = await client.getAuthState();
+        if (stateAfterManualCompletion.session) {
+          return stateAfterManualCompletion;
+        }
+        throw error;
+      }
+
+      const stateAfterManualCompletion = await client.getAuthState();
+      if (stateAfterManualCompletion.session) {
+        return stateAfterManualCompletion;
+      }
+
+      throw new Error("O login nao foi concluido corretamente.");
     }
 
     const finalState = await waitForSession(baseUrl, login.expiresAt);
