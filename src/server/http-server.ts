@@ -1,0 +1,223 @@
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { randomUUID } from "node:crypto";
+import type { StartLoginResult } from "../shared/auth.js";
+import {
+  BRIDGE_SERVICE_NAME,
+  DEFAULT_BRIDGE_HOST,
+  DEFAULT_BRIDGE_MODEL,
+  DEFAULT_BRIDGE_PORT,
+  type BridgeChatRequest,
+  type BridgeChatResponse,
+  type BridgeCompleteLoginRequest,
+  type BridgeHealthResponse,
+  type BridgeLoginResponse
+} from "../shared/bridge.js";
+import type { StreamEvent, StreamRequest } from "../shared/network.js";
+import type { AuthService } from "../main/auth/auth-service.js";
+import type { ProviderFacade } from "../main/network/facade.js";
+import { runBridgeChat } from "./chat.js";
+import type { BridgeServerConfig } from "./types.js";
+
+function writeJson(res: ServerResponse, statusCode: number, payload: unknown): void {
+  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(`${JSON.stringify(payload)}\n`);
+}
+
+function writeText(res: ServerResponse, statusCode: number, body: string): void {
+  res.writeHead(statusCode, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end(body);
+}
+
+async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  return raw ? (JSON.parse(raw) as T) : ({} as T);
+}
+
+function toStreamRequest(body: BridgeChatRequest, fallbackModel: string): StreamRequest {
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  if (messages.length === 0) {
+    throw new Error("`messages` must contain at least one chat message.");
+  }
+
+  return {
+    requestId: randomUUID(),
+    provider: body.provider ?? "codex",
+    model: body.model?.trim() || fallbackModel,
+    messages,
+    temperature: body.temperature,
+    metadata: body.metadata
+  };
+}
+
+async function handleChatStream(params: {
+  req: IncomingMessage;
+  res: ServerResponse;
+  providerFacade: ProviderFacade;
+  defaultModel: string;
+}): Promise<void> {
+  const body = await readJsonBody<BridgeChatRequest>(params.req);
+  const request = toStreamRequest(body, params.defaultModel);
+
+  params.res.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive"
+  });
+
+  const stream = await params.providerFacade.stream({
+    request,
+    onEvent: async (event: StreamEvent) => {
+      params.res.write(`event: ${event.kind}\n`);
+      params.res.write(`data: ${JSON.stringify(event)}\n\n`);
+    }
+  });
+
+  params.req.once("close", () => {
+    stream.abort();
+  });
+  params.res.once("close", () => {
+    stream.abort();
+  });
+
+  try {
+    await stream.completed;
+  } finally {
+    if (!params.res.writableEnded) {
+      params.res.end();
+    }
+  }
+}
+
+async function handleLogin(res: ServerResponse, authService: AuthService): Promise<void> {
+  const login = await authService.startLogin();
+  writeJson(res, 200, {
+    ...login,
+    instructions: [
+      "Abra authUrl no seu navegador.",
+      "Se o callback automatico falhar, envie a URL final em POST /auth/complete."
+    ]
+  } satisfies BridgeLoginResponse);
+}
+
+async function handleChat(params: {
+  req: IncomingMessage;
+  res: ServerResponse;
+  providerFacade: ProviderFacade;
+  defaultModel: string;
+}): Promise<void> {
+  const body = await readJsonBody<BridgeChatRequest>(params.req);
+  const request = toStreamRequest(body, params.defaultModel);
+  const response = await runBridgeChat({
+    providerFacade: params.providerFacade,
+    request
+  });
+  writeJson(params.res, 200, response satisfies BridgeChatResponse);
+}
+
+export async function startBridgeHttpServer(params: {
+  authService: AuthService;
+  providerFacade: ProviderFacade;
+  config?: BridgeServerConfig;
+}): Promise<{ server: Server; host: string; port: number; baseUrl: string }> {
+  const host = params.config?.host ?? DEFAULT_BRIDGE_HOST;
+  const port = params.config?.port ?? DEFAULT_BRIDGE_PORT;
+  const defaultModel = params.config?.model?.trim() || DEFAULT_BRIDGE_MODEL;
+
+  const server = createServer((req, res) => {
+    void (async () => {
+      try {
+        const method = req.method ?? "GET";
+        const url = new URL(req.url ?? "/", `http://${host}:${port}`);
+
+        if (method === "GET" && url.pathname === "/health") {
+          writeJson(
+            res,
+            200,
+            {
+              ok: true,
+              service: BRIDGE_SERVICE_NAME
+            } satisfies BridgeHealthResponse
+          );
+          return;
+        }
+
+        if (method === "GET" && url.pathname === "/auth/state") {
+          writeJson(res, 200, params.authService.getState());
+          return;
+        }
+
+        if (method === "POST" && url.pathname === "/auth/login") {
+          await handleLogin(res, params.authService);
+          return;
+        }
+
+        if (method === "POST" && url.pathname === "/auth/complete") {
+          const body = await readJsonBody<BridgeCompleteLoginRequest>(req);
+          if (!body.redirectUrl?.trim()) {
+            writeJson(res, 400, { error: "`redirectUrl` is required." });
+            return;
+          }
+          await params.authService.completeManualLogin(body.redirectUrl);
+          writeJson(res, 200, params.authService.getState());
+          return;
+        }
+
+        if (method === "POST" && url.pathname === "/auth/logout") {
+          await params.authService.logout();
+          writeJson(res, 200, { ok: true });
+          return;
+        }
+
+        if (method === "POST" && url.pathname === "/chat") {
+          await handleChat({
+            req,
+            res,
+            providerFacade: params.providerFacade,
+            defaultModel
+          });
+          return;
+        }
+
+        if (method === "POST" && url.pathname === "/chat/stream") {
+          await handleChatStream({
+            req,
+            res,
+            providerFacade: params.providerFacade,
+            defaultModel
+          });
+          return;
+        }
+
+        writeText(res, 404, "Not found.");
+      } catch (error) {
+        if (!res.headersSent) {
+          writeJson(res, 500, {
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else if (!res.writableEnded) {
+          res.end();
+        }
+      }
+    })();
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, host, () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+
+  return {
+    server,
+    host,
+    port,
+    baseUrl: `http://${host}:${port}`
+  };
+}
