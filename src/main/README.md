@@ -1,30 +1,30 @@
 # Main
 
-Esta pasta contem a integracao do bridge com o processo principal do Electron.
+This folder contains the bridge integration for the Electron main process.
 
-## Responsabilidade
+## Responsibility
 
-- instanciar `AuthService`
-- montar a `ProviderFacade`
-- registrar handlers IPC
-- manter a logica sensivel fora do renderer
+- instantiate `AuthService`
+- assemble the `ProviderFacade`
+- register IPC handlers
+- keep sensitive logic outside the renderer
 
-## Arquivos
+## Files
 
-- [`index.ts`](./index.ts): cria o runtime Electron via `createElectronBridgeRuntime()`.
+- [`index.ts`](./index.ts): creates the Electron runtime through `createElectronBridgeRuntime()`.
 
-## Subpastas
+## Subfolders
 
-- [auth](./auth/README.md): autenticacao PKCE, sessao e refresh.
-- [ipc](./ipc/README.md): handlers entre renderer e main.
-- [network](./network/README.md): facade e adapters de provider.
+- [auth](./auth/README.md): PKCE authentication, session storage, and refresh.
+- [ipc](./ipc/README.md): handlers between renderer and main.
+- [network](./network/README.md): provider facade and adapters.
 
-## Quando Usar
+## When To Use It
 
-Use esta camada quando o `codex-bridge` estiver embutido em um app Electron, em vez de rodar apenas como servidor local independente.
+Use this layer when `codex-bridge` is embedded inside an Electron app instead of running only as a standalone local server.
 
-## Veja Tambem
+## See Also
 
-- [README raiz](../../README.md)
+- [root README](../../README.md)
 - [preload](../preload/README.md)
 - [server](../server/README.md)

@@ -1,45 +1,45 @@
 # codex-bridge
 
-Bridge local para autenticacao e chat com provedores de IA, com foco em reutilizacao entre projetos Electron e apps Node.
+Local bridge for authentication and AI chat, designed to be reused across Electron projects and Node applications.
 
-## O Que E
+## What It Is
 
-O `codex-bridge` separa o problema em 4 camadas:
+`codex-bridge` splits the problem into 4 layers:
 
-- autenticacao e sessao
-- transporte para providers
-- servidor local reutilizavel
-- integracao opcional com Electron
+- authentication and session management
+- provider transport
+- a reusable local server
+- optional Electron integration
 
-Com isso, seus projetos consumidores falam com uma API local ou com um SDK, em vez de reimplementar OAuth, refresh de token e detalhes de cada backend.
+Because of that, consuming projects talk to a local API or a small SDK instead of reimplementing OAuth, token refresh, and provider-specific request details.
 
-## Principios
+## Principles
 
-- PKCE com `code_verifier` e `code_challenge` em `S256`.
-- Callback loopback em `127.0.0.1:1455/auth/callback`.
-- `state` aleatorio e distinto do verifier, validado de forma estrita para CSRF.
-- Timeout de 5 minutos no servidor local com fechamento automatico.
-- Fallback manual por colagem da URL de redirect.
-- Sessao e refresh centralizados no runtime, sem expor tokens ao frontend.
-- Facade de provedores para manter UI e clientes agnosticos ao backend.
+- PKCE with `code_verifier` and `code_challenge` in `S256`.
+- Loopback callback on `127.0.0.1:1455/auth/callback`.
+- A random `state` value distinct from the verifier, validated strictly for CSRF protection.
+- A 5-minute timeout for the local callback server with automatic shutdown.
+- Manual fallback by pasting the final redirect URL.
+- Session and refresh management centralized in the runtime, without exposing tokens to the frontend.
+- A provider facade so UI layers and client apps stay backend-agnostic.
 
-## Modos De Uso
+## Usage Modes
 
-### 1. Bridge Local
+### 1. Local Bridge
 
-O projeto sobe um servidor HTTP em loopback e outros apps consomem seus endpoints.
+The project starts an HTTP server on loopback and other applications consume its endpoints.
 
-### 2. SDK Cliente
+### 2. Client SDK
 
-Um projeto Node consome o bridge local via `createChatClient()`.
+A Node project consumes the local bridge through `createChatClient()`.
 
-### 3. Integracao Electron
+### 3. Electron Integration
 
-Um app Electron pode embutir o runtime no `main process` e expor apenas a bridge segura no `preload`.
+An Electron app can embed the runtime in the `main process` and expose only the safe bridge through `preload`.
 
-## Modo Bridge Local
+## Local Bridge Mode
 
-Suba o servidor local:
+Start the local server:
 
 ```bash
 npm install
@@ -47,28 +47,28 @@ npm run build
 npm run serve
 ```
 
-Healthcheck:
+Health check:
 
 ```bash
 curl http://127.0.0.1:47831/health
 ```
 
-Iniciar login Codex:
+Start Codex login:
 
 ```bash
 curl -X POST http://127.0.0.1:47831/auth/login
 ```
 
-O `provider` em `/chat` e `/chat/stream` e opcional. Quando omitido, o padrao e `codex`.
+The `provider` field is optional in `/chat` and `/chat/stream`. If omitted, it defaults to `codex`.
 
-Chat sincrono:
+Synchronous chat:
 
 ```bash
 curl -X POST http://127.0.0.1:47831/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "messages": [
-      { "role": "user", "content": "Responda com uma frase curta." }
+      { "role": "user", "content": "Reply with a short sentence." }
     ]
   }'
 ```
@@ -80,20 +80,20 @@ curl -N -X POST http://127.0.0.1:47831/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
     "messages": [
-      { "role": "user", "content": "Responda com uma frase curta." }
+      { "role": "user", "content": "Reply with a short sentence." }
     ]
   }'
 ```
 
-CLI interativo:
+Interactive CLI:
 
 ```bash
 npm run chat:codex
 ```
 
-## Uso Em Outro Projeto
+## Using It From Another Project
 
-Via SDK:
+Via the SDK:
 
 ```ts
 import { createChatClient } from "codex-bridge";
@@ -103,7 +103,7 @@ const client = createChatClient({
 });
 
 const reply = await client.chat({
-  messages: [{ role: "user", content: "Explique este arquivo." }]
+  messages: [{ role: "user", content: "Explain this file." }]
 });
 
 console.log(reply.outputText);
@@ -116,12 +116,12 @@ curl -X POST http://127.0.0.1:47831/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "messages": [
-      { "role": "user", "content": "Resuma este arquivo." }
+      { "role": "user", "content": "Summarize this file." }
     ]
   }'
 ```
 
-## Documentacao Por Pasta
+## Documentation By Folder
 
 - [src/client](./src/client/README.md)
 - [src/cli](./src/cli/README.md)
@@ -134,14 +134,14 @@ curl -X POST http://127.0.0.1:47831/chat \
 - [src/server](./src/server/README.md)
 - [src/shared](./src/shared/README.md)
 
-## Estrutura
+## Structure
 
 ```text
 src/
-  client/    SDK para consumir o bridge local
-  cli/       Entradas de terminal
-  main/      Runtime Electron
-  preload/   API segura exposta ao renderer
-  server/    Bridge local HTTP
-  shared/    Tipos e contratos compartilhados
+  client/    SDK for consuming the local bridge
+  cli/       Terminal entrypoints
+  main/      Electron runtime
+  preload/   Safe API exposed to the renderer
+  server/    Local HTTP bridge
+  shared/    Shared types and contracts
 ```

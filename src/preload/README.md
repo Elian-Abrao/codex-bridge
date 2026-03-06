@@ -1,18 +1,18 @@
 # Preload
 
-Esta pasta contem a bridge segura exposta ao renderer no modo Electron.
+This folder contains the safe bridge exposed to the renderer in Electron mode.
 
-## Responsabilidade
+## Responsibility
 
-- expor uma superficie minima via `contextBridge`
-- encapsular `ipcRenderer`
-- manter o frontend isolado de APIs Node sensiveis
+- expose a minimal surface through `contextBridge`
+- wrap `ipcRenderer`
+- keep the frontend isolated from sensitive Node APIs
 
-## Arquivos
+## Files
 
-- [`index.ts`](./index.ts): publica `window.codexBridge`.
+- [`index.ts`](./index.ts): publishes `window.codexBridge`.
 
-## API Exposta
+## Exposed API
 
 - `auth.startLogin()`
 - `auth.completeManualLogin()`
@@ -23,7 +23,7 @@ Esta pasta contem a bridge segura exposta ao renderer no modo Electron.
 - `ai.abortStream()`
 - `ai.onStreamEvent()`
 
-## Veja Tambem
+## See Also
 
 - [main](../main/README.md)
 - [ipc](../main/ipc/README.md)

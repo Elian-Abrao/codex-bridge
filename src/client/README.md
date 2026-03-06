@@ -1,28 +1,28 @@
 # Client
 
-Esta pasta contem o SDK de consumo do `codex-bridge`.
+This folder contains the `codex-bridge` consumption SDK.
 
-## Responsabilidade
+## Responsibility
 
-O cliente encapsula chamadas HTTP para o bridge local e oferece uma API simples para:
+The client wraps HTTP calls to the local bridge and exposes a small API for:
 
-- verificar saude do servico
-- consultar estado de autenticacao
-- iniciar e concluir login
-- enviar chat sincrono
-- consumir chat em streaming
+- checking service health
+- reading authentication state
+- starting and completing login
+- sending synchronous chat requests
+- consuming streaming chat responses
 
-## Arquivos
+## Files
 
-- [`index.ts`](./index.ts): implementa `CodexBridgeClient`, `createBridgeClient()` e `createChatClient()`.
+- [`index.ts`](./index.ts): implements `CodexBridgeClient`, `createBridgeClient()`, and `createChatClient()`.
 
-## Fluxo
+## Flow
 
-1. Seu projeto instancia o cliente com a URL do bridge.
-2. O cliente chama os endpoints locais de auth e chat.
-3. O bridge cuida de sessao, refresh e transporte para o provedor.
+1. Your project instantiates the client with the bridge URL.
+2. The client calls the local auth and chat endpoints.
+3. The bridge handles session state, refresh, and provider transport.
 
-## Exemplo
+## Example
 
 ```ts
 import { createChatClient } from "codex-bridge";
@@ -32,12 +32,12 @@ const client = createChatClient({
 });
 
 const response = await client.chat({
-  messages: [{ role: "user", content: "Explique esta classe." }]
+  messages: [{ role: "user", content: "Explain this class." }]
 });
 ```
 
-## Veja Tambem
+## See Also
 
-- [README raiz](../../README.md)
+- [root README](../../README.md)
 - [server](../server/README.md)
 - [shared](../shared/README.md)

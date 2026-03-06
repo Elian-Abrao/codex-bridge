@@ -1,34 +1,34 @@
 # Auth
 
-Esta pasta contem o fluxo de autenticacao PKCE e o gerenciamento de sessao.
+This folder contains the PKCE authentication flow and session management.
 
-## Responsabilidade
+## Responsibility
 
-- gerar `code_verifier`, `code_challenge` e `state`
-- subir um callback local em `127.0.0.1:1455`
-- trocar `code` por tokens
-- persistir sessao
-- agendar refresh automatico
-- expor estado publico de autenticacao
+- generate `code_verifier`, `code_challenge`, and `state`
+- start a local callback server on `127.0.0.1:1455`
+- exchange the authorization `code` for tokens
+- persist the session
+- schedule automatic refresh
+- expose public authentication state
 
-## Arquivos
+## Files
 
-- [`auth-service.ts`](./auth-service.ts): orquestra login, callback, persistencia e refresh.
-- [`callback-server.ts`](./callback-server.ts): servidor HTTP local temporario para receber o redirect OAuth.
-- [`pkce.ts`](./pkce.ts): helpers criptograficos e serializacao de payloads OAuth.
-- [`jwt.ts`](./jwt.ts): extrai expiracao e campos uteis do token.
-- [`session-store.ts`](./session-store.ts): leitura e escrita da sessao em disco.
-- [`provider-definitions.ts`](./provider-definitions.ts): parametros do provedor OAuth.
+- [`auth-service.ts`](./auth-service.ts): orchestrates login, callback handling, persistence, and refresh.
+- [`callback-server.ts`](./callback-server.ts): temporary local HTTP server that receives the OAuth redirect.
+- [`pkce.ts`](./pkce.ts): cryptographic helpers and OAuth payload serialization.
+- [`jwt.ts`](./jwt.ts): extracts expiration and useful token metadata.
+- [`session-store.ts`](./session-store.ts): reads and writes the session on disk.
+- [`provider-definitions.ts`](./provider-definitions.ts): OAuth provider parameters.
 
-## Fluxo
+## Flow
 
-1. `startLogin()` cria PKCE e `state`.
-2. O browser externo abre a URL de autorizacao.
-3. O callback local recebe `code` e valida CSRF.
-4. O serviço faz o token exchange.
-5. A sessao e salva e o refresh e programado.
+1. `startLogin()` creates PKCE values and `state`.
+2. The external browser opens the authorization URL.
+3. The local callback receives `code` and validates CSRF state.
+4. The service exchanges the code for tokens.
+5. The session is saved and refresh is scheduled.
 
-## Veja Tambem
+## See Also
 
 - [main](../README.md)
 - [server](../../server/README.md)

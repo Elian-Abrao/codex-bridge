@@ -1,26 +1,26 @@
 # Providers
 
-Esta pasta contem os adapters concretos de cada backend suportado.
+This folder contains the concrete adapters for each supported backend.
 
-## Responsabilidade
+## Responsibility
 
-Cada adapter sabe:
+Each adapter knows:
 
-- como montar a request do provider
-- quais headers usar
-- como converter eventos SSE em `StreamEvent`
+- how to build the provider request
+- which headers to send
+- how to convert SSE events into `StreamEvent`
 
-## Arquivos
+## Files
 
-- [`codex-provider.ts`](./codex-provider.ts): usa sessao OAuth do Codex e suporta `ChatGPT-Account-Id`.
-- [`openai-provider.ts`](./openai-provider.ts): usa API key e a API `/v1/responses`.
-- [`gemini-provider.ts`](./gemini-provider.ts): usa API key e `streamGenerateContent`.
+- [`codex-provider.ts`](./codex-provider.ts): uses the Codex OAuth session and supports `ChatGPT-Account-Id`.
+- [`openai-provider.ts`](./openai-provider.ts): uses an API key and the `/v1/responses` API.
+- [`gemini-provider.ts`](./gemini-provider.ts): uses an API key and `streamGenerateContent`.
 
-## Regra de Design
+## Design Rule
 
-Quando um novo provider for adicionado, a mudanca deve ficar concentrada aqui e no registro da facade, sem vazar regras para o renderer ou para o SDK cliente.
+When a new provider is added, the change should stay concentrated here and in facade registration, without leaking rules into the renderer or the client SDK.
 
-## Veja Tambem
+## See Also
 
 - [network](../README.md)
 - [shared](../../../shared/README.md)

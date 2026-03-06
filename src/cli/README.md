@@ -1,26 +1,26 @@
 # CLI
 
-Esta pasta contem os pontos de entrada para uso do bridge pelo terminal.
+This folder contains the terminal entrypoints for using the bridge.
 
-## Responsabilidade
+## Responsibility
 
-- subir o servidor HTTP local
-- abrir um chat interativo no terminal
-- reutilizar a mesma infraestrutura de auth e rede do runtime principal
+- start the local HTTP server
+- open an interactive terminal chat
+- reuse the same auth and network infrastructure as the main runtime
 
-## Arquivos
+## Files
 
-- [`serve.ts`](./serve.ts): sobe o bridge local em loopback.
-- [`chat-codex.ts`](./chat-codex.ts): inicia um terminal interativo com login, historico e streaming.
+- [`serve.ts`](./serve.ts): starts the local bridge on loopback.
+- [`chat-codex.ts`](./chat-codex.ts): starts an interactive terminal chat with login, history, and streaming support.
 
-## Comandos
+## Commands
 
 ```bash
 npm run serve
 npm run chat:codex
 ```
 
-## Variaveis de Ambiente
+## Environment Variables
 
 - `CODEX_BRIDGE_PORT`
 - `CODEX_BRIDGE_MODEL`
@@ -31,8 +31,8 @@ npm run chat:codex
 - `GEMINI_API_KEY`
 - `GEMINI_BASE_URL`
 
-## Veja Tambem
+## See Also
 
-- [README raiz](../../README.md)
+- [root README](../../README.md)
 - [server](../server/README.md)
 - [client](../client/README.md)

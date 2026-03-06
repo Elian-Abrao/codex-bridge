@@ -1,29 +1,29 @@
 # Network
 
-Esta pasta contem a camada de rede do bridge.
+This folder contains the bridge network layer.
 
-## Responsabilidade
+## Responsibility
 
-- abstrair provedores distintos por uma unica interface
-- preparar headers, endpoint e payload por provider
-- consumir SSE
-- emitir eventos de status, delta, erro e conclusao
+- abstract different providers behind a single interface
+- prepare headers, endpoints, and payloads per provider
+- consume SSE streams
+- emit status, delta, error, and completion events
 
-## Arquivos
+## Files
 
-- [`facade.ts`](./facade.ts): API central para requests e streaming.
-- [`provider-registry.ts`](./provider-registry.ts): contratos de adapter e configuracao runtime.
-- [`streaming.ts`](./streaming.ts): reexporta o parser SSE compartilhado.
+- [`facade.ts`](./facade.ts): central API for requests and streaming.
+- [`provider-registry.ts`](./provider-registry.ts): adapter contracts and runtime configuration.
+- [`streaming.ts`](./streaming.ts): re-exports the shared SSE parser.
 
-## Conceito Central
+## Core Idea
 
-A UI e os consumidores do bridge nao devem conhecer detalhes de `codex`, `openai` ou `gemini`. Essa traducao acontece aqui.
+The UI and bridge consumers should not know the details of `codex`, `openai`, or `gemini`. That translation happens here.
 
-## Subpasta
+## Subfolder
 
-- [providers](./providers/README.md): adapters concretos por backend.
+- [providers](./providers/README.md): concrete backend adapters.
 
-## Veja Tambem
+## See Also
 
 - [main](../README.md)
 - [server](../../server/README.md)

@@ -1,20 +1,20 @@
 # Server
 
-Esta pasta contem o modo de execucao como bridge local independente.
+This folder contains the standalone local bridge runtime.
 
-## Responsabilidade
+## Responsibility
 
-- montar runtime standalone
-- expor API HTTP local
-- transformar streaming em resposta agregada quando necessario
-- servir como ponto de integracao entre apps externos e o runtime
+- assemble the standalone runtime
+- expose the local HTTP API
+- turn streamed responses into aggregated output when needed
+- act as the integration point between external apps and the runtime
 
-## Arquivos
+## Files
 
-- [`runtime.ts`](./runtime.ts): cria `AuthService` e `ProviderFacade` fora do Electron.
-- [`http-server.ts`](./http-server.ts): endpoints HTTP do bridge.
-- [`chat.ts`](./chat.ts): agrega deltas em uma resposta unica para `POST /chat`.
-- [`types.ts`](./types.ts): configuracao do servidor.
+- [`runtime.ts`](./runtime.ts): creates `AuthService` and `ProviderFacade` outside Electron.
+- [`http-server.ts`](./http-server.ts): bridge HTTP endpoints.
+- [`chat.ts`](./chat.ts): aggregates deltas into a single response for `POST /chat`.
+- [`types.ts`](./types.ts): server configuration types.
 
 ## Endpoints
 
@@ -26,9 +26,9 @@ Esta pasta contem o modo de execucao como bridge local independente.
 - `POST /chat`
 - `POST /chat/stream`
 
-## Veja Tambem
+## See Also
 
-- [README raiz](../../README.md)
+- [root README](../../README.md)
 - [client](../client/README.md)
 - [cli](../cli/README.md)
 - [main/auth](../main/auth/README.md)

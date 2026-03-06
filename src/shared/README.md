@@ -1,30 +1,30 @@
 # Shared
 
-Esta pasta contem os contratos compartilhados entre runtime, servidor, preload e cliente.
+This folder contains the contracts shared by the runtime, server, preload layer, and client.
 
-## Responsabilidade
+## Responsibility
 
-- tipos de autenticacao
-- tipos de chat e streaming
-- tipos do bridge HTTP
-- canais IPC
-- contratos da API exposta ao renderer
-- parser SSE reutilizavel
+- authentication types
+- chat and streaming types
+- local HTTP bridge types
+- IPC channel definitions
+- the API contract exposed to the renderer
+- a reusable SSE parser
 
-## Arquivos
+## Files
 
-- [`auth.ts`](./auth.ts): tipos de sessao e estado de autenticacao.
-- [`network.ts`](./network.ts): mensagens de chat e eventos de streaming.
-- [`bridge.ts`](./bridge.ts): contratos do bridge HTTP local.
-- [`ipc.ts`](./ipc.ts): nomes dos canais IPC.
-- [`preload.ts`](./preload.ts): contrato TypeScript de `window.codexBridge`.
-- [`sse.ts`](./sse.ts): parser compartilhado de Server-Sent Events.
+- [`auth.ts`](./auth.ts): session and authentication state types.
+- [`network.ts`](./network.ts): chat messages and streaming events.
+- [`bridge.ts`](./bridge.ts): local HTTP bridge contracts.
+- [`ipc.ts`](./ipc.ts): IPC channel names.
+- [`preload.ts`](./preload.ts): TypeScript contract for `window.codexBridge`.
+- [`sse.ts`](./sse.ts): shared Server-Sent Events parser.
 
-## Regra de Uso
+## Usage Rule
 
-Se um tipo precisa ser conhecido por mais de uma camada, ele deve viver aqui. Isso evita divergencia entre cliente, servidor e Electron.
+If a type must be known by more than one layer, it should live here. That keeps the client, server, and Electron runtime aligned.
 
-## Veja Tambem
+## See Also
 
 - [client](../client/README.md)
 - [server](../server/README.md)
