@@ -2,6 +2,11 @@ import { startBridgeHttpServer } from "../server/http-server.js";
 import { createBridgeRuntime } from "../server/runtime.js";
 import { DEFAULT_BRIDGE_MODEL } from "../shared/bridge.js";
 
+function readHost(): string | undefined {
+  const raw = process.env.CODEX_BRIDGE_HOST?.trim();
+  return raw || undefined;
+}
+
 function readPort(): number | undefined {
   const raw = process.env.CODEX_BRIDGE_PORT?.trim();
   if (!raw) {
@@ -13,7 +18,9 @@ function readPort(): number | undefined {
 
 async function main(): Promise<void> {
   const runtime = await createBridgeRuntime({
+    host: readHost(),
     port: readPort(),
+    authStorePath: process.env.CODEX_BRIDGE_AUTH_STORE_PATH?.trim() || undefined,
     openaiApiKey: process.env.OPENAI_API_KEY,
     geminiApiKey: process.env.GEMINI_API_KEY,
     codexBaseUrl: process.env.CODEX_BASE_URL,
@@ -26,6 +33,7 @@ async function main(): Promise<void> {
     authService: runtime.authService,
     providerFacade: runtime.providerFacade,
     config: {
+      host: readHost(),
       port: readPort(),
       model: process.env.CODEX_BRIDGE_MODEL
     }
