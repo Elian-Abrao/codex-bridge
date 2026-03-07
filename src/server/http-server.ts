@@ -9,6 +9,7 @@ import {
   DEFAULT_BRIDGE_HOST,
   DEFAULT_BRIDGE_MODEL,
   DEFAULT_BRIDGE_PORT,
+  normalizeCodexBridgeModel,
   type BridgeChatRequest,
   type BridgeChatResponse,
   type BridgeCodexCapabilitiesResponse,
@@ -48,10 +49,16 @@ function toStreamRequest(body: BridgeChatRequest, fallbackModel: string): Stream
     throw new Error("`messages` must contain at least one chat message.");
   }
 
+  const provider = body.provider ?? "codex";
+  const requestedModel = body.model?.trim() || fallbackModel;
+  const resolvedModel = provider === "codex"
+    ? normalizeCodexBridgeModel(requestedModel)
+    : requestedModel;
+
   return {
     requestId: randomUUID(),
-    provider: body.provider ?? "codex",
-    model: body.model?.trim() || fallbackModel,
+    provider,
+    model: resolvedModel,
     messages,
     reasoningEffort: body.reasoningEffort,
     temperature: body.temperature,

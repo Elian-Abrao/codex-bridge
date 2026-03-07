@@ -6,6 +6,7 @@ export const DEFAULT_BRIDGE_HOST = "127.0.0.1";
 export const DEFAULT_BRIDGE_PORT = 47831;
 export const DEFAULT_BRIDGE_MODEL = "gpt-5.4";
 export const DEFAULT_BRIDGE_REASONING_EFFORT = "medium";
+export const BLOCKED_CODEX_CHATGPT_MODELS = new Set(["gpt-5-nano"]);
 export const DEFAULT_CODEX_MODELS: BridgeOption[] = [
   {
     id: "gpt-5.4",
@@ -22,11 +23,6 @@ export const DEFAULT_CODEX_MODELS: BridgeOption[] = [
     id: "gpt-5-mini",
     label: "gpt-5-mini",
     description: "Lower-latency GPT-5 option for lighter tasks."
-  },
-  {
-    id: "gpt-5-nano",
-    label: "gpt-5-nano",
-    description: "Smallest GPT-5 option for quick iterations."
   }
 ];
 export const DEFAULT_CODEX_REASONING_EFFORTS: BridgeOption[] = [
@@ -112,3 +108,11 @@ export type BridgeChatResponse = {
   model: string;
   outputText: string;
 };
+
+export function normalizeCodexBridgeModel(model: string | undefined | null): string {
+  const normalized = String(model || "").trim();
+  if (!normalized || BLOCKED_CODEX_CHATGPT_MODELS.has(normalized)) {
+    return DEFAULT_BRIDGE_MODEL;
+  }
+  return normalized;
+}
