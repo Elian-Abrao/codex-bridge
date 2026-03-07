@@ -7,6 +7,7 @@ export const DEFAULT_BRIDGE_PORT = 47831;
 export const DEFAULT_BRIDGE_MODEL = "gpt-5.4";
 export const DEFAULT_BRIDGE_REASONING_EFFORT = "medium";
 export const BLOCKED_CODEX_CHATGPT_MODELS = new Set(["gpt-5-nano"]);
+export const SUPPORTED_CODEX_REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh"] as const;
 export const DEFAULT_CODEX_MODELS: BridgeOption[] = [
   {
     id: "gpt-5.4",
@@ -27,9 +28,9 @@ export const DEFAULT_CODEX_MODELS: BridgeOption[] = [
 ];
 export const DEFAULT_CODEX_REASONING_EFFORTS: BridgeOption[] = [
   {
-    id: "minimal",
-    label: "Minimal",
-    description: "Fastest reasoning profile with minimal deliberation."
+    id: "none",
+    label: "None",
+    description: "Fastest profile with reasoning effectively disabled."
   },
   {
     id: "low",
@@ -46,10 +47,15 @@ export const DEFAULT_CODEX_REASONING_EFFORTS: BridgeOption[] = [
     id: "high",
     label: "High",
     description: "More deliberate reasoning for harder prompts."
+  },
+  {
+    id: "xhigh",
+    label: "XHigh",
+    description: "Maximum reasoning depth for the hardest prompts."
   }
 ];
 
-export type BridgeReasoningEffort = "minimal" | "low" | "medium" | "high";
+export type BridgeReasoningEffort = typeof SUPPORTED_CODEX_REASONING_EFFORTS[number];
 
 export type BridgeOption = {
   id: string;
@@ -115,4 +121,18 @@ export function normalizeCodexBridgeModel(model: string | undefined | null): str
     return DEFAULT_BRIDGE_MODEL;
   }
   return normalized;
+}
+
+export function normalizeCodexReasoningEffort(effort: string | undefined | null): BridgeReasoningEffort {
+  const normalized = String(effort || "").trim().toLowerCase();
+  if (!normalized) {
+    return DEFAULT_BRIDGE_REASONING_EFFORT;
+  }
+  if (normalized === "minimal") {
+    return "low";
+  }
+  if ((SUPPORTED_CODEX_REASONING_EFFORTS as readonly string[]).includes(normalized)) {
+    return normalized as BridgeReasoningEffort;
+  }
+  return DEFAULT_BRIDGE_REASONING_EFFORT;
 }

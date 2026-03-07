@@ -10,6 +10,7 @@ import {
   DEFAULT_BRIDGE_MODEL,
   DEFAULT_BRIDGE_PORT,
   normalizeCodexBridgeModel,
+  normalizeCodexReasoningEffort,
   type BridgeChatRequest,
   type BridgeChatResponse,
   type BridgeCodexCapabilitiesResponse,
@@ -54,13 +55,16 @@ function toStreamRequest(body: BridgeChatRequest, fallbackModel: string): Stream
   const resolvedModel = provider === "codex"
     ? normalizeCodexBridgeModel(requestedModel)
     : requestedModel;
+  const resolvedReasoningEffort = provider === "codex"
+    ? normalizeCodexReasoningEffort(body.reasoningEffort)
+    : body.reasoningEffort;
 
   return {
     requestId: randomUUID(),
     provider,
     model: resolvedModel,
     messages,
-    reasoningEffort: body.reasoningEffort,
+    reasoningEffort: resolvedReasoningEffort,
     temperature: body.temperature,
     metadata: body.metadata
   };
