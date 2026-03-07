@@ -167,8 +167,8 @@ export class AuthService extends EventEmitter<AuthServiceEvents> {
         cancelPath: "/auth/cancel",
         expectedState: state,
         timeoutMs: LOGIN_TIMEOUT_MS,
-        successTitle: "Codex login complete",
-        successMessage: "You can close this window and return to the Electron app."
+        successTitle: "Access granted",
+        successMessage: "codex-bridge is now authorized. You can return to your terminal or app and continue."
       });
       await pending.callbackServer.start();
       void pending.callbackServer.waitForCompletion().then((payload) => {

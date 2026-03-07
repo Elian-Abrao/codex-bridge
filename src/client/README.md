@@ -7,6 +7,7 @@ This folder contains the `codex-bridge` consumption SDK.
 The client wraps HTTP calls to the local bridge and exposes a small API for:
 
 - checking service health
+- reading Codex provider capabilities
 - reading authentication state
 - starting and completing login
 - sending synchronous chat requests
@@ -31,7 +32,12 @@ const client = createChatClient({
   baseUrl: "http://127.0.0.1:47831"
 });
 
+const capabilities = await client.getCodexCapabilities();
+console.log(capabilities.models);
+
 const response = await client.chat({
+  model: "gpt-5.4",
+  reasoningEffort: "medium",
   messages: [{ role: "user", content: "Explain this class." }]
 });
 ```

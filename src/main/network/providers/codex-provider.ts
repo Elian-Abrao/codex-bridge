@@ -131,17 +131,25 @@ export class CodexProviderAdapter implements ProviderAdapter {
       headers["ChatGPT-Account-Id"] = session.accountId;
     }
 
+    const payload: Record<string, unknown> = {
+      model: context.request.model,
+      stream: true,
+      store: false,
+      instructions: buildCodexInstructions(context.request.messages),
+      input: buildResponsesInput(context.request.messages)
+    };
+
+    if (context.request.reasoningEffort?.trim()) {
+      payload.reasoning = {
+        effort: context.request.reasoningEffort.trim()
+      };
+    }
+
     return {
       url: `${baseUrl}/responses`,
       method: "POST",
       headers,
-      body: JSON.stringify({
-        model: context.request.model,
-        stream: true,
-        store: false,
-        instructions: buildCodexInstructions(context.request.messages),
-        input: buildResponsesInput(context.request.messages)
-      })
+      body: JSON.stringify(payload)
     };
   }
 

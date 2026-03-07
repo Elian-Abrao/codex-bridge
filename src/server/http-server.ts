@@ -3,11 +3,15 @@ import { randomUUID } from "node:crypto";
 import type { StartLoginResult } from "../shared/auth.js";
 import {
   BRIDGE_SERVICE_NAME,
+  DEFAULT_BRIDGE_REASONING_EFFORT,
+  DEFAULT_CODEX_MODELS,
+  DEFAULT_CODEX_REASONING_EFFORTS,
   DEFAULT_BRIDGE_HOST,
   DEFAULT_BRIDGE_MODEL,
   DEFAULT_BRIDGE_PORT,
   type BridgeChatRequest,
   type BridgeChatResponse,
+  type BridgeCodexCapabilitiesResponse,
   type BridgeCompleteLoginRequest,
   type BridgeHealthResponse,
   type BridgeLoginResponse
@@ -49,8 +53,29 @@ function toStreamRequest(body: BridgeChatRequest, fallbackModel: string): Stream
     provider: body.provider ?? "codex",
     model: body.model?.trim() || fallbackModel,
     messages,
+    reasoningEffort: body.reasoningEffort,
     temperature: body.temperature,
     metadata: body.metadata
+  };
+}
+
+function buildCodexCapabilities(params: {
+  authService: AuthService;
+  defaultModel: string;
+}): BridgeCodexCapabilitiesResponse {
+  const authState = params.authService.getState();
+  const accountEmail = authState.session?.email;
+
+  return {
+    provider: "codex",
+    billingMode: "monthly",
+    requiresAuth: true,
+    authenticated: Boolean(authState.session),
+    accountEmail,
+    defaultModel: params.defaultModel,
+    defaultReasoningEffort: DEFAULT_BRIDGE_REASONING_EFFORT,
+    models: DEFAULT_CODEX_MODELS,
+    reasoningEfforts: DEFAULT_CODEX_REASONING_EFFORTS
   };
 }
 
@@ -148,6 +173,18 @@ export async function startBridgeHttpServer(params: {
 
         if (method === "GET" && url.pathname === "/auth/state") {
           writeJson(res, 200, params.authService.getState());
+          return;
+        }
+
+        if (method === "GET" && url.pathname === "/providers/codex/options") {
+          writeJson(
+            res,
+            200,
+            buildCodexCapabilities({
+              authService: params.authService,
+              defaultModel
+            })
+          );
           return;
         }
 

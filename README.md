@@ -61,12 +61,27 @@ curl -X POST http://127.0.0.1:47831/auth/login
 
 The `provider` field is optional in `/chat` and `/chat/stream`. If omitted, it defaults to `codex`.
 
+Provider capabilities:
+
+```bash
+curl http://127.0.0.1:47831/providers/codex/options
+```
+
+This endpoint returns:
+
+- authentication status for the current Codex session
+- the advertised model list for `codex`
+- supported reasoning effort values
+- the default model and default reasoning effort
+
 Synchronous chat:
 
 ```bash
 curl -X POST http://127.0.0.1:47831/chat \
   -H 'Content-Type: application/json' \
   -d '{
+    "model": "gpt-5.4",
+    "reasoningEffort": "medium",
     "messages": [
       { "role": "user", "content": "Reply with a short sentence." }
     ]
@@ -79,6 +94,8 @@ Streaming:
 curl -N -X POST http://127.0.0.1:47831/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
+    "model": "gpt-5.4",
+    "reasoningEffort": "high",
     "messages": [
       { "role": "user", "content": "Reply with a short sentence." }
     ]
@@ -103,6 +120,8 @@ const client = createChatClient({
 });
 
 const reply = await client.chat({
+  model: "gpt-5.4",
+  reasoningEffort: "medium",
   messages: [{ role: "user", content: "Explain this file." }]
 });
 
@@ -115,6 +134,7 @@ Via HTTP:
 curl -X POST http://127.0.0.1:47831/chat \
   -H 'Content-Type: application/json' \
   -d '{
+    "reasoningEffort": "medium",
     "messages": [
       { "role": "user", "content": "Summarize this file." }
     ]

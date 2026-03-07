@@ -6,6 +6,7 @@ import {
   DEFAULT_BRIDGE_PORT,
   type BridgeChatRequest,
   type BridgeChatResponse,
+  type BridgeCodexCapabilitiesResponse,
   type BridgeCompleteLoginRequest,
   type BridgeErrorResponse,
   type BridgeHealthResponse,
@@ -100,6 +101,10 @@ export class CodexBridgeClient {
 
   async logout(): Promise<void> {
     await this.requestJson<BridgeLogoutResponse>("POST", "/auth/logout");
+  }
+
+  async getCodexCapabilities(): Promise<BridgeCodexCapabilitiesResponse> {
+    return this.requestJson<BridgeCodexCapabilitiesResponse>("GET", "/providers/codex/options");
   }
 
   async chat(request: BridgeChatRequest): Promise<BridgeChatResponse> {

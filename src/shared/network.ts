@@ -12,6 +12,7 @@ export type StreamRequest = {
   provider: ProviderId;
   model: string;
   messages: ChatMessage[];
+  reasoningEffort?: string;
   temperature?: number;
   metadata?: Record<string, string>;
 };

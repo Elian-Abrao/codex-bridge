@@ -14,8 +14,8 @@ This folder contains the contracts shared by the runtime, server, preload layer,
 ## Files
 
 - [`auth.ts`](./auth.ts): session and authentication state types.
-- [`network.ts`](./network.ts): chat messages and streaming events.
-- [`bridge.ts`](./bridge.ts): local HTTP bridge contracts.
+- [`network.ts`](./network.ts): chat messages, reasoning metadata, and streaming events.
+- [`bridge.ts`](./bridge.ts): local HTTP bridge contracts, provider capabilities, and chat request types.
 - [`ipc.ts`](./ipc.ts): IPC channel names.
 - [`preload.ts`](./preload.ts): TypeScript contract for `window.codexBridge`.
 - [`sse.ts`](./sse.ts): shared Server-Sent Events parser.
