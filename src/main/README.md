@@ -2,6 +2,8 @@
 
 This folder contains the bridge integration for the Electron main process.
 
+It is now a transitional integration path. The preferred product path is the standalone Python broker plus SDKs.
+
 ## Responsibility
 
 - instantiate `AuthService`

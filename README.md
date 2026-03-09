@@ -4,11 +4,12 @@ Local bridge for Codex authentication and chat access.
 
 ## Status
 
-The repository is in transition.
+The preferred product path is now the Python broker in [`broker/`](./broker/README.md).
 
-- Current implementation: a local broker/runtime in Node.js with optional Electron integration, a Node SDK, and a Python SDK.
-- Migration work now started: a Python broker skeleton lives in [`broker/`](./broker/README.md).
-- Target direction: a Python-first, Codex-only local broker with a small CLI and SDKs that consume the broker over HTTP.
+- Canonical runtime: Python broker, Codex-only.
+- Canonical API: versioned HTTP routes under `/v1`.
+- Canonical operation path: local broker + CLI + SDKs.
+- Transitional compatibility path: Node runtime and Electron integration under `src/`.
 
 The design decisions for that repositioning live in:
 
@@ -17,14 +18,16 @@ The design decisions for that repositioning live in:
 
 ## What It Is
 
-`codex-bridge` splits the problem into 4 layers:
+`codex-bridge` is a local Codex broker.
 
-- authentication and session management
-- provider transport
-- a reusable local server
-- optional Electron integration
+It centralizes:
 
-Because of that, consuming projects talk to a local API or a small SDK instead of reimplementing OAuth, token refresh, and provider-specific request details.
+- OAuth PKCE login
+- session persistence and refresh
+- Codex model metadata
+- synchronous and streaming chat transport
+- a local HTTP API for other applications
+- a CLI for local operation and smoke testing
 
 ## Principles
 
@@ -33,33 +36,18 @@ Because of that, consuming projects talk to a local API or a small SDK instead o
 - A random `state` value distinct from the verifier, validated strictly for CSRF protection.
 - A 5-minute timeout for the local callback server with automatic shutdown.
 - Manual fallback by pasting the final redirect URL.
-- Session and refresh management centralized in the runtime, without exposing tokens to the frontend.
-- A provider facade so UI layers and client apps stay backend-agnostic.
+- Session and refresh management centralized in the broker.
+- Codex-only public API, without multi-provider branching in consumers.
 
 ## Usage Modes
 
-These are the current usage modes implemented in the repository today.
+### 1. Python Broker
 
-### 1. Local Bridge
-
-The project starts an HTTP server on loopback and other applications consume its endpoints.
-
-### 2. Client SDKs
-
-A Node or Python project consumes the local bridge through a small SDK.
-
-### 3. Electron Integration
-
-An Electron app can embed the runtime in the `main process` and expose only the safe bridge through `preload`.
-
-## Local Bridge Mode
-
-Start the local server:
+Run the canonical local broker:
 
 ```bash
-npm install
-npm run build
-npm run serve
+PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli login
+PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli serve
 ```
 
 Health check:
@@ -74,7 +62,7 @@ Start Codex login:
 curl -X POST http://127.0.0.1:47831/v1/auth/login
 ```
 
-The `provider` field is optional in the current Node implementation, but the target public contract is Codex-only. New consumers should treat Codex as implicit.
+The public broker contract is Codex-only. Consumers should not branch by provider.
 
 Provider capabilities:
 
@@ -120,7 +108,7 @@ curl -N -X POST http://127.0.0.1:47831/v1/chat/stream \
 Interactive CLI:
 
 ```bash
-npm run chat:codex
+PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli chat "Explain this repository."
 ```
 
 ## Using It From Another Project
@@ -185,6 +173,18 @@ curl -X POST http://127.0.0.1:47831/v1/chat \
   }'
 ```
 
+## Transitional Node Runtime
+
+The Node runtime still exists as a compatibility implementation:
+
+```bash
+npm install
+npm run build
+npm run serve
+```
+
+It accepts the same `/v1` API and also keeps the legacy unversioned aliases during migration.
+
 ## Documentation By Folder
 
 - [docs](./docs/TARGET_ARCHITECTURE.md)
@@ -205,18 +205,18 @@ curl -X POST http://127.0.0.1:47831/v1/chat \
 
 ```text
 src/
-  client/    SDK for consuming the local bridge
-  cli/       Terminal entrypoints
-  main/      Electron runtime
-  preload/   Safe API exposed to the renderer
-  server/    Local HTTP bridge
-  shared/    Shared types and contracts
+  client/    transitional Node SDK
+  cli/       transitional Node CLI entrypoints
+  main/      transitional Electron runtime
+  preload/   transitional Electron preload bridge
+  server/    transitional Node HTTP bridge
+  shared/    shared TypeScript contracts
 python/
   src/codex_bridge/  Python SDK for consuming the local bridge
   examples/          FastAPI integration example
   tests/             Python SDK test suite
 broker/
-  src/codex_bridge_broker/  Python-first broker skeleton
+  src/codex_bridge_broker/  Python-first broker runtime
   tests/                    Python broker tests
 docs/
   TARGET_ARCHITECTURE.md  Python-first product direction

@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
 
-from .api import handle_request
+from .api import handle_json_request, parse_json_body
 from .config import DEFAULT_BIND_HOST, DEFAULT_BIND_PORT
+from .errors import BrokerError
+from .runtime import BrokerRuntime, create_runtime
 
 
-def create_handler() -> type[BaseHTTPRequestHandler]:
+def _format_sse_event(event: dict[str, object]) -> bytes:
+    return f"event: {event['kind']}\ndata: {json.dumps(event)}\n\n".encode("utf-8")
+
+
+def create_handler(runtime: BrokerRuntime) -> type[BaseHTTPRequestHandler]:
     class BrokerHandler(BaseHTTPRequestHandler):
         server_version = "codex-bridge-broker/0.1.0"
 
@@ -22,7 +30,47 @@ def create_handler() -> type[BaseHTTPRequestHandler]:
         def _handle(self) -> None:
             content_length = int(self.headers.get("Content-Length", "0") or "0")
             body = self.rfile.read(content_length) if content_length > 0 else None
-            status, payload = handle_request(self.command, self.path, body)
+            try:
+                if self.command == "POST" and self._is_stream_route():
+                    self._handle_stream(body)
+                    return
+
+                status, payload = handle_json_request(runtime, self.command, self.path, body)
+                self._write_json(status, payload)
+            except BrokerError as exc:
+                self._write_json(exc.status_code, json.dumps({"error": str(exc)}).encode("utf-8"))
+            except Exception as exc:
+                self._write_json(500, json.dumps({"error": str(exc)}).encode("utf-8"))
+
+        def _is_stream_route(self) -> bool:
+            return urlparse(self.path).path in {"/chat/stream", "/v1/chat/stream"}
+
+        def _handle_stream(self, body: bytes | None) -> None:
+            payload = parse_json_body(body)
+            stream = runtime.codex_service.stream_chat(payload)
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-transform")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+
+            try:
+                for event in stream:
+                    self.wfile.write(_format_sse_event(event))
+                    self.wfile.flush()
+            except BrokerError as exc:
+                error_event = {
+                    "requestId": "broker",
+                    "provider": "codex",
+                    "kind": "error",
+                    "message": str(exc),
+                }
+                self.wfile.write(_format_sse_event(error_event))
+                self.wfile.flush()
+
+        def _write_json(self, status: int, payload: bytes) -> None:
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
@@ -32,8 +80,13 @@ def create_handler() -> type[BaseHTTPRequestHandler]:
     return BrokerHandler
 
 
-def run_server(host: str = DEFAULT_BIND_HOST, port: int = DEFAULT_BIND_PORT) -> None:
-    server = ThreadingHTTPServer((host, port), create_handler())
+def run_server(
+    host: str = DEFAULT_BIND_HOST,
+    port: int = DEFAULT_BIND_PORT,
+    runtime: BrokerRuntime | None = None,
+) -> None:
+    active_runtime = runtime or create_runtime()
+    server = ThreadingHTTPServer((host, port), create_handler(active_runtime))
     print(f"codex-bridge python broker listening on http://{host}:{port}", flush=True)
     try:
         server.serve_forever()

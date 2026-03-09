@@ -1,6 +1,8 @@
 # Server
 
-This folder contains the standalone local bridge runtime.
+This folder contains the current standalone Node bridge runtime.
+
+It remains useful as a compatibility implementation, but the Python broker in [`/broker`](../../broker/README.md) is now the preferred product path.
 
 ## Responsibility
 

@@ -2,6 +2,8 @@
 
 Python client for consuming a local `codex-bridge` server.
 
+The preferred runtime to consume is the Python broker under [`/broker`](../broker/README.md), but the client also works against the transitional Node runtime because both expose the same `/v1` API.
+
 ## Install
 
 From this repository:
