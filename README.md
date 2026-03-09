@@ -1,6 +1,19 @@
 # codex-bridge
 
-Local bridge for authentication and AI chat, designed to be reused across Electron projects and Node applications.
+Local bridge for Codex authentication and chat access.
+
+## Status
+
+The repository is in transition.
+
+- Current implementation: a local broker/runtime in Node.js with optional Electron integration, a Node SDK, and a Python SDK.
+- Migration work now started: a Python broker skeleton lives in [`broker/`](./broker/README.md).
+- Target direction: a Python-first, Codex-only local broker with a small CLI and SDKs that consume the broker over HTTP.
+
+The design decisions for that repositioning live in:
+
+- [Target Architecture](./docs/TARGET_ARCHITECTURE.md)
+- [Migration Plan](./docs/MIGRATION_PLAN.md)
 
 ## What It Is
 
@@ -24,6 +37,8 @@ Because of that, consuming projects talk to a local API or a small SDK instead o
 - A provider facade so UI layers and client apps stay backend-agnostic.
 
 ## Usage Modes
+
+These are the current usage modes implemented in the repository today.
 
 ### 1. Local Bridge
 
@@ -50,21 +65,21 @@ npm run serve
 Health check:
 
 ```bash
-curl http://127.0.0.1:47831/health
+curl http://127.0.0.1:47831/v1/health
 ```
 
 Start Codex login:
 
 ```bash
-curl -X POST http://127.0.0.1:47831/auth/login
+curl -X POST http://127.0.0.1:47831/v1/auth/login
 ```
 
-The `provider` field is optional in `/chat` and `/chat/stream`. If omitted, it defaults to `codex`.
+The `provider` field is optional in the current Node implementation, but the target public contract is Codex-only. New consumers should treat Codex as implicit.
 
 Provider capabilities:
 
 ```bash
-curl http://127.0.0.1:47831/providers/codex/options
+curl http://127.0.0.1:47831/v1/providers/codex/options
 ```
 
 This endpoint returns:
@@ -77,7 +92,7 @@ This endpoint returns:
 Synchronous chat:
 
 ```bash
-curl -X POST http://127.0.0.1:47831/chat \
+curl -X POST http://127.0.0.1:47831/v1/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "gpt-5.4",
@@ -91,7 +106,7 @@ curl -X POST http://127.0.0.1:47831/chat \
 Streaming:
 
 ```bash
-curl -N -X POST http://127.0.0.1:47831/chat/stream \
+curl -N -X POST http://127.0.0.1:47831/v1/chat/stream \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "gpt-5.4",
@@ -160,7 +175,7 @@ uvicorn fastapi_app:app --app-dir python/examples --reload
 Via HTTP:
 
 ```bash
-curl -X POST http://127.0.0.1:47831/chat \
+curl -X POST http://127.0.0.1:47831/v1/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "reasoningEffort": "medium",
@@ -172,6 +187,8 @@ curl -X POST http://127.0.0.1:47831/chat \
 
 ## Documentation By Folder
 
+- [docs](./docs/TARGET_ARCHITECTURE.md)
+- [broker](./broker/README.md)
 - [src/client](./src/client/README.md)
 - [src/cli](./src/cli/README.md)
 - [src/main](./src/main/README.md)
@@ -198,4 +215,10 @@ python/
   src/codex_bridge/  Python SDK for consuming the local bridge
   examples/          FastAPI integration example
   tests/             Python SDK test suite
+broker/
+  src/codex_bridge_broker/  Python-first broker skeleton
+  tests/                    Python broker tests
+docs/
+  TARGET_ARCHITECTURE.md  Python-first product direction
+  MIGRATION_PLAN.md       refactor and removal plan
 ```

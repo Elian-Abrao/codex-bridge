@@ -18,18 +18,20 @@ This folder contains the standalone local bridge runtime.
 
 ## Endpoints
 
-- `GET /health`
-- `GET /auth/state`
-- `GET /providers/codex/options`
-- `POST /auth/login`
-- `POST /auth/complete`
-- `POST /auth/logout`
-- `POST /chat`
-- `POST /chat/stream`
+- `GET /v1/health`
+- `GET /v1/auth/state`
+- `GET /v1/providers/codex/options`
+- `POST /v1/auth/login`
+- `POST /v1/auth/complete`
+- `POST /v1/auth/logout`
+- `POST /v1/chat`
+- `POST /v1/chat/stream`
+
+Legacy unversioned aliases are still accepted during the migration period.
 
 ## Provider Capabilities
 
-`GET /providers/codex/options` returns a small capabilities document for the `codex` provider:
+`GET /v1/providers/codex/options` returns a small capabilities document for the `codex` provider:
 
 - whether the bridge currently has an authenticated Codex session
 - the authenticated account email when available

@@ -40,9 +40,9 @@ async function main(): Promise<void> {
   });
 
   process.stdout.write(`codex-bridge listening on ${started.baseUrl}\n`);
-  process.stdout.write("auth: POST /auth/login | GET /auth/state | POST /auth/complete | POST /auth/logout\n");
+  process.stdout.write("auth: POST /v1/auth/login | GET /v1/auth/state | POST /v1/auth/complete | POST /v1/auth/logout\n");
   process.stdout.write(
-    `chat: POST /chat | POST /chat/stream (provider defaults to codex, model defaults to ${process.env.CODEX_BRIDGE_MODEL?.trim() || DEFAULT_BRIDGE_MODEL})\n`
+    `chat: POST /v1/chat | POST /v1/chat/stream (provider defaults to codex, model defaults to ${process.env.CODEX_BRIDGE_MODEL?.trim() || DEFAULT_BRIDGE_MODEL})\n`
   );
 }
 

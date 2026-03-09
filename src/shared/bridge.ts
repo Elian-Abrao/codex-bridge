@@ -2,6 +2,7 @@ import type { AuthStateSnapshot, ProviderId, StartLoginResult } from "./auth.js"
 import type { ChatMessage } from "./network.js";
 
 export const BRIDGE_SERVICE_NAME = "codex-bridge";
+export const BRIDGE_API_PREFIX = "/v1";
 export const DEFAULT_BRIDGE_HOST = "127.0.0.1";
 export const DEFAULT_BRIDGE_PORT = 47831;
 export const DEFAULT_BRIDGE_MODEL = "gpt-5.4";
@@ -114,6 +115,11 @@ export type BridgeChatResponse = {
   model: string;
   outputText: string;
 };
+
+export function buildBridgeApiPath(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${BRIDGE_API_PREFIX}${normalized}`;
+}
 
 export function normalizeCodexBridgeModel(model: string | undefined | null): string {
   const normalized = String(model || "").trim();

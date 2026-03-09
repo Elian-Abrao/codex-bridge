@@ -16,6 +16,7 @@ from .types import (
 )
 
 BRIDGE_SERVICE_NAME = "codex-bridge"
+BRIDGE_API_PREFIX = "/v1"
 DEFAULT_BRIDGE_HOST = "127.0.0.1"
 DEFAULT_BRIDGE_PORT = 47831
 DEFAULT_BRIDGE_MODEL = "gpt-5.4"
@@ -37,6 +38,11 @@ class BridgeHttpError(BridgeClientError):
 
 def _trim_trailing_slash(value: str) -> str:
     return value.rstrip("/")
+
+
+def _build_api_path(path: str) -> str:
+    normalized = path if path.startswith("/") else f"/{path}"
+    return f"{BRIDGE_API_PREFIX}{normalized}"
 
 
 def _read_error_message(body: str, status_code: int) -> str:
@@ -102,33 +108,33 @@ class CodexBridgeClient:
         return self._base_url
 
     def health(self) -> BridgeHealthResponse:
-        payload = self._request_json("GET", "/health")
+        payload = self._request_json("GET", _build_api_path("/health"))
         service = payload.get("service")
         if service != BRIDGE_SERVICE_NAME:
             raise BridgeClientError(f"Unexpected bridge service: {service}")
         return payload  # type: ignore[return-value]
 
     def get_auth_state(self) -> AuthStateSnapshot:
-        return self._request_json("GET", "/auth/state")  # type: ignore[return-value]
+        return self._request_json("GET", _build_api_path("/auth/state"))  # type: ignore[return-value]
 
     def start_login(self) -> BridgeLoginResponse:
-        return self._request_json("POST", "/auth/login")  # type: ignore[return-value]
+        return self._request_json("POST", _build_api_path("/auth/login"))  # type: ignore[return-value]
 
     def complete_login(self, redirect_url: str) -> AuthStateSnapshot:
         return self._request_json(
             "POST",
-            "/auth/complete",
+            _build_api_path("/auth/complete"),
             {"redirectUrl": redirect_url},
         )  # type: ignore[return-value]
 
     def logout(self) -> None:
-        self._request_json("POST", "/auth/logout")
+        self._request_json("POST", _build_api_path("/auth/logout"))
 
     def get_codex_capabilities(self) -> BridgeCodexCapabilitiesResponse:
-        return self._request_json("GET", "/providers/codex/options")  # type: ignore[return-value]
+        return self._request_json("GET", _build_api_path("/providers/codex/options"))  # type: ignore[return-value]
 
     def chat(self, request_payload: BridgeChatRequest) -> BridgeChatResponse:
-        return self._request_json("POST", "/chat", request_payload)  # type: ignore[return-value]
+        return self._request_json("POST", _build_api_path("/chat"), request_payload)  # type: ignore[return-value]
 
     def iter_stream_chat(
         self,
@@ -136,7 +142,7 @@ class CodexBridgeClient:
         *,
         timeout: float | None = None,
     ) -> Iterator[StreamEvent]:
-        response = self._open("POST", "/chat/stream", request_payload, timeout=timeout)
+        response = self._open("POST", _build_api_path("/chat/stream"), request_payload, timeout=timeout)
         try:
             for envelope in _iter_sse_events(response):
                 raw_data = envelope.get("data", "")

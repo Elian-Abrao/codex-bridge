@@ -23,6 +23,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:python": "PYTHONPATH=python/src python3 -m unittest discover -s python/tests -p 'test_*.py'",
+    "test:python:broker": "PYTHONPATH=broker/src python3 -m unittest discover -s broker/tests -p 'test_*.py'",
     "serve": "node dist/cli/serve.js",
     "chat:codex": "node dist/cli/chat-codex.js"
   },

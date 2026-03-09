@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { randomUUID } from "node:crypto";
 import type { StartLoginResult } from "../shared/auth.js";
 import {
+  BRIDGE_API_PREFIX,
   BRIDGE_SERVICE_NAME,
   DEFAULT_BRIDGE_REASONING_EFFORT,
   DEFAULT_CODEX_MODELS,
@@ -32,6 +33,10 @@ function writeJson(res: ServerResponse, statusCode: number, payload: unknown): v
 function writeText(res: ServerResponse, statusCode: number, body: string): void {
   res.writeHead(statusCode, { "Content-Type": "text/plain; charset=utf-8" });
   res.end(body);
+}
+
+function isRoutePath(pathname: string, routePath: string): boolean {
+  return pathname === routePath || pathname === `${BRIDGE_API_PREFIX}${routePath}`;
 }
 
 async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
@@ -135,7 +140,7 @@ async function handleLogin(res: ServerResponse, authService: AuthService): Promi
     ...login,
     instructions: [
       "Abra authUrl no seu navegador.",
-      "Se o callback automatico falhar, envie a URL final em POST /auth/complete."
+      "Se o callback automatico falhar, envie a URL final em POST /v1/auth/complete."
     ]
   } satisfies BridgeLoginResponse);
 }
@@ -170,7 +175,7 @@ export async function startBridgeHttpServer(params: {
         const method = req.method ?? "GET";
         const url = new URL(req.url ?? "/", `http://${host}:${port}`);
 
-        if (method === "GET" && url.pathname === "/health") {
+        if (method === "GET" && isRoutePath(url.pathname, "/health")) {
           writeJson(
             res,
             200,
@@ -182,12 +187,12 @@ export async function startBridgeHttpServer(params: {
           return;
         }
 
-        if (method === "GET" && url.pathname === "/auth/state") {
+        if (method === "GET" && isRoutePath(url.pathname, "/auth/state")) {
           writeJson(res, 200, params.authService.getState());
           return;
         }
 
-        if (method === "GET" && url.pathname === "/providers/codex/options") {
+        if (method === "GET" && isRoutePath(url.pathname, "/providers/codex/options")) {
           writeJson(
             res,
             200,
@@ -199,12 +204,12 @@ export async function startBridgeHttpServer(params: {
           return;
         }
 
-        if (method === "POST" && url.pathname === "/auth/login") {
+        if (method === "POST" && isRoutePath(url.pathname, "/auth/login")) {
           await handleLogin(res, params.authService);
           return;
         }
 
-        if (method === "POST" && url.pathname === "/auth/complete") {
+        if (method === "POST" && isRoutePath(url.pathname, "/auth/complete")) {
           const body = await readJsonBody<BridgeCompleteLoginRequest>(req);
           if (!body.redirectUrl?.trim()) {
             writeJson(res, 400, { error: "`redirectUrl` is required." });
@@ -215,13 +220,13 @@ export async function startBridgeHttpServer(params: {
           return;
         }
 
-        if (method === "POST" && url.pathname === "/auth/logout") {
+        if (method === "POST" && isRoutePath(url.pathname, "/auth/logout")) {
           await params.authService.logout();
           writeJson(res, 200, { ok: true });
           return;
         }
 
-        if (method === "POST" && url.pathname === "/chat") {
+        if (method === "POST" && isRoutePath(url.pathname, "/chat")) {
           await handleChat({
             req,
             res,
@@ -231,7 +236,7 @@ export async function startBridgeHttpServer(params: {
           return;
         }
 
-        if (method === "POST" && url.pathname === "/chat/stream") {
+        if (method === "POST" && isRoutePath(url.pathname, "/chat/stream")) {
           await handleChatStream({
             req,
             res,

@@ -42,7 +42,7 @@ class CodexBridgeClientTests(unittest.TestCase):
             payload = self.client.health()
 
         self.assertTrue(payload["ok"])
-        self.assertEqual(captured["url"], "http://127.0.0.1:47831/health")
+        self.assertEqual(captured["url"], "http://127.0.0.1:47831/v1/health")
         self.assertEqual(captured["method"], "GET")
 
     def test_complete_login_posts_redirect_url(self) -> None:
@@ -59,7 +59,7 @@ class CodexBridgeClientTests(unittest.TestCase):
                 "http://localhost:1455/auth/callback?code=abc&state=def"
             )
 
-        self.assertEqual(captured["url"], "http://127.0.0.1:47831/auth/complete")
+        self.assertEqual(captured["url"], "http://127.0.0.1:47831/v1/auth/complete")
         self.assertEqual(captured["method"], "POST")
         self.assertEqual(
             json.loads(str(captured["body"])),

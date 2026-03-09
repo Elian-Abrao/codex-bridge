@@ -4,6 +4,7 @@ import {
   DEFAULT_BRIDGE_HOST,
   DEFAULT_BRIDGE_MODEL,
   DEFAULT_BRIDGE_PORT,
+  buildBridgeApiPath,
   type BridgeChatRequest,
   type BridgeChatResponse,
   type BridgeCodexCapabilitiesResponse,
@@ -73,7 +74,7 @@ export class CodexBridgeClient {
   }
 
   async health(): Promise<BridgeHealthResponse> {
-    const response = await this.#fetchImpl(`${this.#baseUrl}/health`);
+    const response = await this.#fetchImpl(`${this.#baseUrl}${buildBridgeApiPath("/health")}`);
     if (!response.ok) {
       throw new Error(await readErrorMessage(response));
     }
@@ -86,36 +87,36 @@ export class CodexBridgeClient {
   }
 
   async getAuthState(): Promise<AuthStateSnapshot> {
-    return this.requestJson<AuthStateSnapshot>("GET", "/auth/state");
+    return this.requestJson<AuthStateSnapshot>("GET", buildBridgeApiPath("/auth/state"));
   }
 
   async startLogin(): Promise<BridgeLoginResponse> {
-    return this.requestJson<BridgeLoginResponse>("POST", "/auth/login");
+    return this.requestJson<BridgeLoginResponse>("POST", buildBridgeApiPath("/auth/login"));
   }
 
   async completeLogin(redirectUrl: string): Promise<AuthStateSnapshot> {
-    return this.requestJson<AuthStateSnapshot, BridgeCompleteLoginRequest>("POST", "/auth/complete", {
+    return this.requestJson<AuthStateSnapshot, BridgeCompleteLoginRequest>("POST", buildBridgeApiPath("/auth/complete"), {
       redirectUrl
     });
   }
 
   async logout(): Promise<void> {
-    await this.requestJson<BridgeLogoutResponse>("POST", "/auth/logout");
+    await this.requestJson<BridgeLogoutResponse>("POST", buildBridgeApiPath("/auth/logout"));
   }
 
   async getCodexCapabilities(): Promise<BridgeCodexCapabilitiesResponse> {
-    return this.requestJson<BridgeCodexCapabilitiesResponse>("GET", "/providers/codex/options");
+    return this.requestJson<BridgeCodexCapabilitiesResponse>("GET", buildBridgeApiPath("/providers/codex/options"));
   }
 
   async chat(request: BridgeChatRequest): Promise<BridgeChatResponse> {
-    return this.requestJson<BridgeChatResponse, BridgeChatRequest>("POST", "/chat", request);
+    return this.requestJson<BridgeChatResponse, BridgeChatRequest>("POST", buildBridgeApiPath("/chat"), request);
   }
 
   async streamChat(
     request: BridgeChatRequest,
     options?: BridgeStreamOptions
   ): Promise<BridgeChatResponse> {
-    const response = await this.#fetchImpl(`${this.#baseUrl}/chat/stream`, {
+    const response = await this.#fetchImpl(`${this.#baseUrl}${buildBridgeApiPath("/chat/stream")}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
