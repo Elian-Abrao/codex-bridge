@@ -150,6 +150,13 @@ reply = client.chat(
 print(reply["outputText"])
 ```
 
+FastAPI example:
+
+```bash
+pip install -e './python[examples]'
+uvicorn fastapi_app:app --app-dir python/examples --reload
+```
+
 Via HTTP:
 
 ```bash
@@ -189,4 +196,6 @@ src/
   shared/    Shared types and contracts
 python/
   src/codex_bridge/  Python SDK for consuming the local bridge
+  examples/          FastAPI integration example
+  tests/             Python SDK test suite
 ```

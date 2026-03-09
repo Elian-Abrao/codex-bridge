@@ -25,6 +25,12 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+examples = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1"
+]
+
 [tool.setuptools]
 package-dir = { "" = "src" }
 

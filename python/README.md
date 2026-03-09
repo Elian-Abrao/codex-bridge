@@ -16,6 +16,12 @@ Editable install during development:
 pip install -e ./python
 ```
 
+Install with the FastAPI example dependencies:
+
+```bash
+pip install -e './python[examples]'
+```
+
 ## Example
 
 ```python
@@ -56,6 +62,28 @@ response = client.stream_chat(
 )
 ```
 
+## FastAPI Example
+
+A minimal FastAPI proxy app lives in [`examples/fastapi_app.py`](./examples/fastapi_app.py).
+
+Run it with:
+
+```bash
+pip install -e './python[examples]'
+uvicorn fastapi_app:app --app-dir python/examples --reload
+```
+
+The example exposes:
+
+- `GET /health`
+- `GET /bridge/health`
+- `GET /bridge/auth/state`
+- `POST /bridge/auth/login`
+- `POST /bridge/auth/complete`
+- `GET /bridge/providers/codex/options`
+- `POST /bridge/chat`
+- `POST /bridge/chat/stream`
+
 ## Surface
 
 - `health()`
@@ -67,3 +95,11 @@ response = client.stream_chat(
 - `chat(request)`
 - `iter_stream_chat(request)`
 - `stream_chat(request, on_event=...)`
+
+## Tests
+
+Run the SDK tests from the repository root:
+
+```bash
+npm run test:python
+```
