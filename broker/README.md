@@ -31,16 +31,16 @@ It currently provides:
 From the repository root:
 
 ```bash
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli serve
+npm run serve
 ```
 
 ## CLI
 
 ```bash
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli login
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli status
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli models
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli chat "Explain this repository."
+npm run login
+npm run status
+npm run models
+npm run chat -- "Explain this repository."
 ```
 
 ## Test
@@ -52,3 +52,16 @@ npm run test:python:broker
 ## Purpose
 
 The package now provides the Python-first broker implementation for the migration path.
+
+## Storage
+
+The broker now supports:
+
+- OS keyring storage when the optional `keyring` dependency is installed
+- JSON file fallback when keyring support is unavailable
+
+To prepare a secure local install:
+
+```bash
+pip install './broker[secure]'
+```

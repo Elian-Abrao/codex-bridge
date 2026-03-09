@@ -12,6 +12,12 @@ From this repository:
 pip install ./python
 ```
 
+Published package target:
+
+```bash
+pip install codex-bridge-sdk
+```
+
 Editable install during development:
 
 ```bash

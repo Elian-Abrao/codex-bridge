@@ -17,7 +17,10 @@ class BrokerRuntime:
 
 def create_runtime(config: BrokerConfig | None = None) -> BrokerRuntime:
     resolved = config or load_config()
-    auth_store = AuthSessionStore(resolved.auth_store_path)
+    auth_store = AuthSessionStore(
+        resolved.auth_store_path,
+        prefer_keyring=resolved.prefer_keyring,
+    )
     auth_service = AuthService(session_store=auth_store)
     auth_service.initialize()
 

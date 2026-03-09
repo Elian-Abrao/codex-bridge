@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build TypeScript compatibility runtime
+        run: npm run build
+
+      - name: Run Python SDK tests
+        run: npm run test:python
+
+      - name: Run Python broker tests
+        run: npm run test:python:broker
+
+      - name: Install Python build backend
+        run: python3 -m pip install build
+
+      - name: Build broker distribution
+        run: npm run package:broker
+
+      - name: Build SDK distribution
+        run: npm run package:sdk

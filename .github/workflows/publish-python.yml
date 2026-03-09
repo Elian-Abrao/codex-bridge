@@ -1,0 +1,40 @@
+name: Publish Python Packages
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: python3 -m pip install build twine
+
+      - name: Build broker distribution
+        run: python3 -m build broker
+
+      - name: Build SDK distribution
+        run: python3 -m build python
+
+      - name: Upload broker distribution
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN_BROKER }}
+        run: python3 -m twine upload broker/dist/*
+
+      - name: Upload SDK distribution
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN_SDK }}
+        run: python3 -m twine upload python/dist/*

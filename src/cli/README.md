@@ -1,6 +1,8 @@
 # CLI
 
-This folder contains the terminal entrypoints for using the bridge.
+This folder contains the transitional Node terminal entrypoints for using the bridge.
+
+The preferred operational path is now the Python broker CLI. These commands remain useful for compatibility and comparison during migration.
 
 ## Responsibility
 
@@ -16,8 +18,8 @@ This folder contains the terminal entrypoints for using the bridge.
 ## Commands
 
 ```bash
-npm run serve
-npm run chat:codex
+npm run serve:legacy
+npm run chat:legacy
 ```
 
 ## Environment Variables

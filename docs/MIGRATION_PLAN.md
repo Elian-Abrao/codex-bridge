@@ -2,6 +2,16 @@
 
 This document explains how the current repository will be refactored into the target Python-first product shape.
 
+## Progress Snapshot
+
+Current status:
+
+- Python broker runtime exists and is functional
+- `/v1` API exists in the Python broker and the transitional Node runtime
+- Python broker already handles auth, session, capabilities, synchronous chat, and streaming chat
+- Node and Electron paths are now documented as transitional compatibility layers
+- packaging and publishing guidance now exist for broker and SDK
+
 ## Current State
 
 The repository currently contains:
@@ -105,6 +115,10 @@ Work:
 - implement `/v1/chat`
 - implement `/v1/chat/stream`
 
+Status:
+
+- completed
+
 ### Phase 3. Auth And Session Parity
 
 Goal:
@@ -119,6 +133,10 @@ Work:
 - session persistence
 - refresh scheduling
 - compatibility normalization for model and reasoning values
+
+Status:
+
+- completed for the current product path
 
 ### Phase 4. CLI Consolidation
 
@@ -135,6 +153,10 @@ Work:
 - add `models`
 - add `chat`
 
+Status:
+
+- completed
+
 ### Phase 5. SDK Realignment
 
 Goal:
@@ -146,6 +168,10 @@ Work:
 - keep Python SDK aligned with broker API
 - optionally rebuild the JS SDK as a thin HTTP client
 - remove duplicated broker logic from clients
+
+Status:
+
+- in progress
 
 ### Phase 6. Deprecation Cleanup
 
@@ -159,6 +185,10 @@ Work:
 - remove multi-provider positioning from root docs
 - isolate or remove Electron-first runtime as a primary path
 - archive or move Node broker code if no longer needed
+
+Status:
+
+- in progress
 
 ## Acceptance Criteria For The Migration
 
@@ -176,8 +206,8 @@ We should consider the migration successful when:
 
 The next implementation pass should focus on:
 
-1. creating the Python broker package layout
-2. introducing `/v1` HTTP routes in the current server contract
-3. isolating Codex-specific logic from generic provider abstractions
-4. marking OpenAI and Gemini code paths as non-strategic
-5. reducing the prominence of Electron in public-facing documentation
+1. isolating or removing remaining Node legacy paths from the main developer journey
+2. deciding whether to keep the JavaScript SDK long-term or freeze it as compatibility-only
+3. hardening secure storage by installing keyring support in deployment environments
+4. publishing the broker and SDK Python packages
+5. deciding whether to keep Electron integration in-repo or move it to a compatibility package

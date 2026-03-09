@@ -1,6 +1,8 @@
 # Client
 
-This folder contains the Node/TypeScript consumption SDK.
+This folder contains the transitional Node/TypeScript consumption SDK.
+
+The preferred client package for new Python-first broker usage remains the Python SDK in [`/python`](../../python/README.md). This SDK is kept for compatibility with existing JavaScript consumers.
 
 ## Responsibility
 

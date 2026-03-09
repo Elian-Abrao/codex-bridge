@@ -18,7 +18,7 @@ class BrokerApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         auth_store_path = str(Path(self.temp_dir.name) / "auth" / "codex-session.json")
-        self.runtime = create_runtime(load_config(auth_store_path=auth_store_path))
+        self.runtime = create_runtime(load_config(auth_store_path=auth_store_path, prefer_keyring=False))
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), create_handler(self.runtime))
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()

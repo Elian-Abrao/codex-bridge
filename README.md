@@ -15,6 +15,7 @@ The design decisions for that repositioning live in:
 
 - [Target Architecture](./docs/TARGET_ARCHITECTURE.md)
 - [Migration Plan](./docs/MIGRATION_PLAN.md)
+- [Publishing Guide](./docs/PUBLISHING.md)
 
 ## What It Is
 
@@ -46,8 +47,8 @@ It centralizes:
 Run the canonical local broker:
 
 ```bash
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli login
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli serve
+npm run login
+npm run serve
 ```
 
 Health check:
@@ -108,7 +109,7 @@ curl -N -X POST http://127.0.0.1:47831/v1/chat/stream \
 Interactive CLI:
 
 ```bash
-PYTHONPATH=broker/src python3 -m codex_bridge_broker.cli chat "Explain this repository."
+npm run chat -- "Explain this repository."
 ```
 
 ## Using It From Another Project
@@ -180,7 +181,7 @@ The Node runtime still exists as a compatibility implementation:
 ```bash
 npm install
 npm run build
-npm run serve
+npm run serve:legacy
 ```
 
 It accepts the same `/v1` API and also keeps the legacy unversioned aliases during migration.
@@ -221,4 +222,5 @@ broker/
 docs/
   TARGET_ARCHITECTURE.md  Python-first product direction
   MIGRATION_PLAN.md       refactor and removal plan
+  PUBLISHING.md           broker and SDK packaging/release guide
 ```

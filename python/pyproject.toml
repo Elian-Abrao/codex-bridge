@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codex-bridge"
+name = "codex-bridge-sdk"
 version = "0.1.0"
 description = "Python SDK for the codex-bridge local HTTP service."
 readme = "README.md"
@@ -30,6 +30,7 @@ examples = [
   "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.30,<1"
 ]
+publish = ["build>=1.2,<2", "twine>=5,<6"]
 
 [tool.setuptools]
 package-dir = { "" = "src" }

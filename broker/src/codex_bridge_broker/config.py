@@ -13,6 +13,8 @@ DEFAULT_CODEX_MODEL = "gpt-5.4"
 DEFAULT_REASONING_EFFORT = "medium"
 DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
 DEFAULT_USER_AGENT = "codex-bridge/python"
+KEYRING_SERVICE_NAME = "codex-bridge"
+KEYRING_USERNAME = "default"
 OPENAI_AUTH_ISSUER = "https://auth.openai.com"
 CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CODEX_ORIGINATOR = "codex_cli_rs"
@@ -52,6 +54,7 @@ class BrokerConfig:
     auth_store_path: Path = default_auth_store_path()
     codex_base_url: str = DEFAULT_CODEX_BASE_URL
     user_agent: str = DEFAULT_USER_AGENT
+    prefer_keyring: bool = True
 
 
 def load_config(
@@ -61,6 +64,7 @@ def load_config(
     auth_store_path: str | None = None,
     codex_base_url: str | None = None,
     user_agent: str | None = None,
+    prefer_keyring: bool | None = None,
 ) -> BrokerConfig:
     raw_port = str(port or getenv("CODEX_BRIDGE_PORT", "")).strip()
     parsed_port = DEFAULT_BIND_PORT
@@ -79,6 +83,11 @@ def load_config(
         auth_store_path=store_path,
         codex_base_url=(codex_base_url or getenv("CODEX_BASE_URL", "")).strip() or DEFAULT_CODEX_BASE_URL,
         user_agent=(user_agent or getenv("CODEX_BRIDGE_USER_AGENT", "")).strip() or DEFAULT_USER_AGENT,
+        prefer_keyring=(
+            prefer_keyring
+            if prefer_keyring is not None
+            else getenv("CODEX_BRIDGE_DISABLE_KEYRING", "").strip() not in {"1", "true", "yes"}
+        ),
     )
 
 

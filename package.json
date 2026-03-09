@@ -24,8 +24,16 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:python": "PYTHONPATH=python/src python3 -m unittest discover -s python/tests -p 'test_*.py'",
     "test:python:broker": "PYTHONPATH=broker/src python3 -m unittest discover -s broker/tests -p 'test_*.py'",
-    "serve": "node dist/cli/serve.js",
-    "chat:codex": "node dist/cli/chat-codex.js"
+    "serve": "PYTHONPATH=broker/src python3 -m codex_bridge_broker serve",
+    "login": "PYTHONPATH=broker/src python3 -m codex_bridge_broker login",
+    "status": "PYTHONPATH=broker/src python3 -m codex_bridge_broker status",
+    "models": "PYTHONPATH=broker/src python3 -m codex_bridge_broker models",
+    "chat": "PYTHONPATH=broker/src python3 -m codex_bridge_broker chat",
+    "package:broker": "python3 -m build broker",
+    "package:sdk": "python3 -m build python",
+    "serve:legacy": "node dist/cli/serve.js",
+    "chat:legacy": "node dist/cli/chat-codex.js",
+    "chat:codex": "npm run chat:legacy"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
