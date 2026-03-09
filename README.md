@@ -29,9 +29,9 @@ Because of that, consuming projects talk to a local API or a small SDK instead o
 
 The project starts an HTTP server on loopback and other applications consume its endpoints.
 
-### 2. Client SDK
+### 2. Client SDKs
 
-A Node project consumes the local bridge through `createChatClient()`.
+A Node or Python project consumes the local bridge through a small SDK.
 
 ### 3. Electron Integration
 
@@ -110,7 +110,7 @@ npm run chat:codex
 
 ## Using It From Another Project
 
-Via the SDK:
+Via the Node SDK:
 
 ```ts
 import { createChatClient } from "codex-bridge";
@@ -126,6 +126,28 @@ const reply = await client.chat({
 });
 
 console.log(reply.outputText);
+```
+
+Via the Python SDK:
+
+```bash
+pip install ./python
+```
+
+```python
+from codex_bridge import create_chat_client
+
+client = create_chat_client("http://127.0.0.1:47831")
+
+reply = client.chat(
+    {
+        "model": "gpt-5.4",
+        "reasoningEffort": "medium",
+        "messages": [{"role": "user", "content": "Explain this file."}],
+    }
+)
+
+print(reply["outputText"])
 ```
 
 Via HTTP:
@@ -150,6 +172,7 @@ curl -X POST http://127.0.0.1:47831/chat \
 - [src/main/ipc](./src/main/ipc/README.md)
 - [src/main/network](./src/main/network/README.md)
 - [src/main/network/providers](./src/main/network/providers/README.md)
+- [python](./python/README.md)
 - [src/preload](./src/preload/README.md)
 - [src/server](./src/server/README.md)
 - [src/shared](./src/shared/README.md)
@@ -164,4 +187,6 @@ src/
   preload/   Safe API exposed to the renderer
   server/    Local HTTP bridge
   shared/    Shared types and contracts
+python/
+  src/codex_bridge/  Python SDK for consuming the local bridge
 ```

@@ -1,6 +1,6 @@
 # Client
 
-This folder contains the `codex-bridge` consumption SDK.
+This folder contains the Node/TypeScript consumption SDK.
 
 ## Responsibility
 
@@ -16,6 +16,8 @@ The client wraps HTTP calls to the local bridge and exposes a small API for:
 ## Files
 
 - [`index.ts`](./index.ts): implements `CodexBridgeClient`, `createBridgeClient()`, and `createChatClient()`.
+
+Python consumers should use the separate package in [`/python`](../../python/README.md).
 
 ## Flow
 
