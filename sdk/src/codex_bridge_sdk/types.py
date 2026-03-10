@@ -72,6 +72,7 @@ class BridgeChatRequest(TypedDict, total=False):
     reasoningEffort: BridgeReasoningEffort
     temperature: float
     metadata: dict[str, str]
+    executionMode: str
 
 
 class BridgeChatResponse(TypedDict):
@@ -109,6 +110,88 @@ class StreamErrorEvent(TypedDict):
 
 
 StreamEvent = StreamStatusEvent | StreamDeltaEvent | StreamDoneEvent | StreamErrorEvent
+
+
+BridgePermissionProfile = Literal["read-only", "workspace-write", "full-access"]
+BridgeApprovalPolicy = Literal["manual", "auto-edit", "auto"]
+
+
+class AgentToolDescriptor(TypedDict, total=False):
+    name: str
+    description: str
+    requiresWrite: bool
+    requiresFullAccess: bool
+
+
+class AgentActionSnapshot(TypedDict, total=False):
+    id: str
+    sessionId: str
+    tool: str
+    input: Any
+    status: str
+    createdAt: int
+    nextRoundIndex: int
+    requiresWrite: bool
+    requiresFullAccess: bool
+
+
+class AgentSessionSnapshot(TypedDict, total=False):
+    id: str
+    mode: str
+    model: str
+    reasoningEffort: BridgeReasoningEffort
+    permissionProfile: BridgePermissionProfile
+    approvalPolicy: BridgeApprovalPolicy
+    workspaceRoot: str
+    cwd: str
+    createdAt: int
+    updatedAt: int
+    messageCount: int
+    status: str
+    eventSequence: int
+    pendingAction: AgentActionSnapshot
+
+
+class AgentEvent(TypedDict, total=False):
+    sessionId: str
+    kind: str
+    message: str
+    eventId: str
+    createdAt: int
+    sequence: int
+    statusCode: int
+    tool: str
+    metadata: dict[str, Any]
+    action: AgentActionSnapshot
+    session: AgentSessionSnapshot
+    outputText: str
+    reason: str
+
+
+class AgentSessionCreateRequest(TypedDict, total=False):
+    mode: str
+    model: str
+    reasoningEffort: BridgeReasoningEffort
+    permissionProfile: BridgePermissionProfile
+    approvalPolicy: BridgeApprovalPolicy
+    cwd: str
+
+
+class AgentTurnRequest(TypedDict):
+    prompt: str
+
+
+class AgentSessionResponse(TypedDict):
+    session: AgentSessionSnapshot
+
+
+class AgentTurnResponse(TypedDict):
+    session: AgentSessionSnapshot
+    events: list[AgentEvent]
+
+
+class AgentToolsResponse(TypedDict):
+    tools: list[AgentToolDescriptor]
 
 
 JsonObject = dict[str, Any]

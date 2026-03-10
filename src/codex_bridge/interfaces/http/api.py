@@ -26,6 +26,14 @@ def _is_route(path: str, route_path: str) -> bool:
     return normalized == route_path or normalized == f"{BRIDGE_API_PREFIX}{route_path}"
 
 
+def _split_api_path(path: str) -> list[str]:
+    normalized = _normalize_path(path)
+    if normalized.startswith(f"{BRIDGE_API_PREFIX}/"):
+        normalized = normalized[len(BRIDGE_API_PREFIX) :]
+    parts = [part for part in normalized.split("/") if part]
+    return parts
+
+
 def parse_json_body(body: bytes | None) -> JsonDict:
     if not body:
         return {}
@@ -84,5 +92,70 @@ def handle_json_request(runtime: BrokerRuntime, method: str, path: str, body: by
 
     if method == "POST" and _is_route(path, "/chat/stream"):
         raise BrokerError(500, "Streaming route must be handled separately.")
+
+    parts = _split_api_path(path)
+    if parts[:2] == ["agent", "tools"] and method == "GET":
+        return _json_response(HTTPStatus.OK, {"tools": runtime.agent_service.list_tools()})
+
+    if parts[:2] == ["agent", "sessions"] and len(parts) == 2 and method == "POST":
+        payload = parse_json_body(body)
+        session = runtime.agent_service.create_session(
+            mode=str(payload.get("mode") or "agent"),
+            model=payload.get("model") if isinstance(payload.get("model"), str) else None,
+            reasoning_effort=payload.get("reasoningEffort") if isinstance(payload.get("reasoningEffort"), str) else None,
+            permission_profile=payload.get("permissionProfile") if isinstance(payload.get("permissionProfile"), str) else None,
+            approval_policy=payload.get("approvalPolicy") if isinstance(payload.get("approvalPolicy"), str) else None,
+            cwd=payload.get("cwd") if isinstance(payload.get("cwd"), str) else None,
+        )
+        return _json_response(HTTPStatus.OK, {"session": session.to_dict()})
+
+    if parts[:2] == ["agent", "sessions"] and len(parts) >= 3:
+        session_id = parts[2]
+
+        if len(parts) == 3 and method == "GET":
+            return _json_response(HTTPStatus.OK, {"session": runtime.agent_service.get_session_snapshot(session_id)})
+
+        if len(parts) == 4 and parts[3] == "reset" and method == "POST":
+            session = runtime.agent_service.reset_session(session_id)
+            return _json_response(HTTPStatus.OK, {"session": session.to_dict()})
+
+        if len(parts) == 4 and parts[3] == "permissions" and method == "POST":
+            payload = parse_json_body(body)
+            permission_profile = payload.get("permissionProfile")
+            if not isinstance(permission_profile, str) or not permission_profile.strip():
+                raise BrokerError(400, "`permissionProfile` is required.")
+            session = runtime.agent_service.set_permissions(session_id, permission_profile)
+            return _json_response(HTTPStatus.OK, {"session": session.to_dict()})
+
+        if len(parts) == 4 and parts[3] == "approval-policy" and method == "POST":
+            payload = parse_json_body(body)
+            approval_policy = payload.get("approvalPolicy")
+            if not isinstance(approval_policy, str) or not approval_policy.strip():
+                raise BrokerError(400, "`approvalPolicy` is required.")
+            session = runtime.agent_service.set_approval_policy(session_id, approval_policy)
+            return _json_response(HTTPStatus.OK, {"session": session.to_dict()})
+
+        if len(parts) == 4 and parts[3] == "turns" and method == "POST":
+            payload = parse_json_body(body)
+            prompt = payload.get("prompt")
+            if not isinstance(prompt, str) or not prompt.strip():
+                raise BrokerError(400, "`prompt` is required.")
+            events = list(runtime.agent_service.send_turn(session_id, prompt))
+            session = runtime.agent_service.get_session_snapshot(session_id)
+            return _json_response(HTTPStatus.OK, {"session": session, "events": events})
+
+        if len(parts) == 6 and parts[3] == "actions" and parts[5] == "approve" and method == "POST":
+            action_id = parts[4]
+            events = list(runtime.agent_service.approve_action(session_id, action_id))
+            session = runtime.agent_service.get_session_snapshot(session_id)
+            return _json_response(HTTPStatus.OK, {"session": session, "events": events})
+
+        if len(parts) == 6 and parts[3] == "actions" and parts[5] == "reject" and method == "POST":
+            action_id = parts[4]
+            payload = parse_json_body(body)
+            reason = payload.get("reason") if isinstance(payload.get("reason"), str) else None
+            events = list(runtime.agent_service.reject_action(session_id, action_id, reason))
+            session = runtime.agent_service.get_session_snapshot(session_id)
+            return _json_response(HTTPStatus.OK, {"session": session, "events": events})
 
     return _json_response(HTTPStatus.NOT_FOUND, {"error": "Not found."})

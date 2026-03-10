@@ -67,6 +67,46 @@ class CodexBridgeClientTests(unittest.TestCase):
         )
         self.assertEqual(response["session"]["email"], "user@example.com")
 
+    def test_create_agent_session_posts_expected_payload(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_urlopen(req, timeout=0):  # type: ignore[no-untyped-def]
+            captured["url"] = req.full_url
+            captured["method"] = req.get_method()
+            captured["body"] = req.data.decode("utf-8") if req.data else ""
+            return FakeResponse(body='{"session":{"id":"sess-1","approvalPolicy":"manual"}}')
+
+        with patch("codex_bridge_sdk.client.request.urlopen", side_effect=fake_urlopen):
+            response = self.client.create_agent_session(
+                {"permissionProfile": "read-only", "approvalPolicy": "manual"}
+            )
+
+        self.assertEqual(captured["url"], "http://127.0.0.1:47831/v1/agent/sessions")
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(
+            json.loads(str(captured["body"])),
+            {"permissionProfile": "read-only", "approvalPolicy": "manual"},
+        )
+        self.assertEqual(response["session"]["id"], "sess-1")
+
+    def test_approve_agent_action_uses_expected_route(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_urlopen(req, timeout=0):  # type: ignore[no-untyped-def]
+            captured["url"] = req.full_url
+            captured["method"] = req.get_method()
+            return FakeResponse(body='{"session":{"id":"sess-1"},"events":[]}')
+
+        with patch("codex_bridge_sdk.client.request.urlopen", side_effect=fake_urlopen):
+            response = self.client.approve_agent_action("sess-1", "action-1")
+
+        self.assertEqual(
+            captured["url"],
+            "http://127.0.0.1:47831/v1/agent/sessions/sess-1/actions/action-1/approve",
+        )
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(response["session"]["id"], "sess-1")
+
     def test_http_errors_raise_bridge_http_error(self) -> None:
         http_error = error.HTTPError(
             url="http://127.0.0.1:47831/chat",

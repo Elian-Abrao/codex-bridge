@@ -8,6 +8,7 @@ from typing import Any
 
 VALID_PERMISSION_PROFILES = ("read-only", "workspace-write", "full-access")
 VALID_SESSION_MODES = ("chat", "agent")
+VALID_APPROVAL_POLICIES = ("manual", "auto-edit", "auto")
 TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
 
 
@@ -23,6 +24,13 @@ def normalize_session_mode(value: str | None) -> str:
     if normalized in VALID_SESSION_MODES:
         return normalized
     return "agent"
+
+
+def normalize_approval_policy(value: str | None) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in VALID_APPROVAL_POLICIES:
+        return normalized
+    return "manual"
 
 
 @dataclass(slots=True)
@@ -66,6 +74,32 @@ class ToolCall:
     input_payload: Any
 
 
+@dataclass(slots=True)
+class AgentAction:
+    id: str
+    session_id: str
+    tool_name: str
+    input_payload: Any
+    status: str
+    created_at: int
+    next_round_index: int
+    tool_requires_write: bool = False
+    tool_requires_full_access: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "sessionId": self.session_id,
+            "tool": self.tool_name,
+            "input": self.input_payload,
+            "status": self.status,
+            "createdAt": self.created_at,
+            "nextRoundIndex": self.next_round_index,
+            "requiresWrite": self.tool_requires_write,
+            "requiresFullAccess": self.tool_requires_full_access,
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class ToolResult:
     tool_name: str
@@ -93,28 +127,41 @@ class AgentSession:
     model: str
     reasoning_effort: str
     permission_profile: str
+    approval_policy: str
     workspace_root: str
     cwd: str
     created_at: int
     updated_at: int
     messages: list[dict[str, str]] = field(default_factory=list)
+    pending_action: AgentAction | None = None
+    event_sequence: int = 0
 
     def touch(self, updated_at: int) -> None:
         self.updated_at = updated_at
 
+    @property
+    def status(self) -> str:
+        return "awaiting_approval" if self.pending_action else "idle"
+
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "id": self.id,
             "mode": self.mode,
             "model": self.model,
             "reasoningEffort": self.reasoning_effort,
             "permissionProfile": self.permission_profile,
+            "approvalPolicy": self.approval_policy,
             "workspaceRoot": self.workspace_root,
             "cwd": self.cwd,
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
             "messageCount": len(self.messages),
+            "status": self.status,
+            "eventSequence": self.event_sequence,
         }
+        if self.pending_action:
+            payload["pendingAction"] = self.pending_action.to_dict()
+        return payload
 
 
 def parse_tool_call(text: str) -> ToolCall | None:

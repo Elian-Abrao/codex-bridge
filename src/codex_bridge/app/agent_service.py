@@ -6,9 +6,12 @@ from pathlib import Path
 from typing import Any, Generator, Iterator
 
 from ..domain.agent import (
+    AgentAction,
     AgentEvent,
     AgentSession,
+    ToolDescriptor,
     build_agent_runtime_instructions,
+    normalize_approval_policy,
     normalize_permission_profile,
     normalize_session_mode,
     parse_tool_call,
@@ -43,6 +46,7 @@ class AgentService:
         model: str | None = None,
         reasoning_effort: str | None = None,
         permission_profile: str | None = None,
+        approval_policy: str | None = None,
         cwd: str | None = None,
     ) -> AgentSession:
         now_ms = self._now()
@@ -54,6 +58,7 @@ class AgentService:
             model=normalize_codex_model(model),
             reasoning_effort=normalize_reasoning_effort(reasoning_effort),
             permission_profile=normalize_permission_profile(permission_profile),
+            approval_policy=normalize_approval_policy(approval_policy),
             workspace_root=str(workspace_root),
             cwd=str(resolved_cwd),
             created_at=now_ms,
@@ -71,15 +76,25 @@ class AgentService:
     def list_tools(self) -> list[dict[str, object]]:
         return [tool.descriptor.to_dict() for tool in self._tools.values()]
 
+    def get_session_snapshot(self, session_id: str) -> dict[str, object]:
+        return self.get_session(session_id).to_dict()
+
     def reset_session(self, session_id: str) -> AgentSession:
         session = self.get_session(session_id)
         session.messages.clear()
+        session.pending_action = None
         session.touch(self._now())
         return session
 
     def set_permissions(self, session_id: str, permission_profile: str) -> AgentSession:
         session = self.get_session(session_id)
         session.permission_profile = normalize_permission_profile(permission_profile)
+        session.touch(self._now())
+        return session
+
+    def set_approval_policy(self, session_id: str, approval_policy: str) -> AgentSession:
+        session = self.get_session(session_id)
+        session.approval_policy = normalize_approval_policy(approval_policy)
         session.touch(self._now())
         return session
 
@@ -101,70 +116,81 @@ class AgentService:
         session.touch(self._now())
         return session
 
+    def approve_action(self, session_id: str, action_id: str) -> Iterator[dict[str, object]]:
+        session = self.get_session(session_id)
+        action = session.pending_action
+        if not action or action.id != action_id:
+            yield self._event(session, "error", "There is no matching pending action to approve.", {"statusCode": 404})
+            return
+
+        session.pending_action = None
+        session.touch(self._now())
+        yield self._event(
+            session,
+            "action.approved",
+            f"Approved `{action.tool_name}`.",
+            {"action": {**action.to_dict(), "status": "approved"}},
+        )
+
+        tool_completed = yield from self._execute_tool_and_emit(
+            session,
+            tool_name=action.tool_name,
+            input_payload=action.input_payload,
+        )
+        if not tool_completed:
+            return
+
+        yield from self._continue_turn(session, start_round=action.next_round_index)
+
+    def reject_action(self, session_id: str, action_id: str, reason: str | None = None) -> Iterator[dict[str, object]]:
+        session = self.get_session(session_id)
+        action = session.pending_action
+        if not action or action.id != action_id:
+            yield self._event(session, "error", "There is no matching pending action to reject.", {"statusCode": 404})
+            return
+
+        rejection_reason = (reason or "").strip() or "Rejected by operator."
+        session.pending_action = None
+        session.messages.append(
+            {
+                "role": "system",
+                "content": f"Local tool request `{action.tool_name}` was rejected by the operator. Reason: {rejection_reason}",
+            }
+        )
+        session.touch(self._now())
+        yield self._event(
+            session,
+            "action.rejected",
+            f"Rejected `{action.tool_name}`.",
+            {
+                "action": {**action.to_dict(), "status": "rejected"},
+                "reason": rejection_reason,
+            },
+        )
+        yield from self._continue_turn(session, start_round=action.next_round_index)
+
     def execute_tool(self, session_id: str, tool_name: str, input_payload: Any) -> Iterator[dict[str, object]]:
         session = self.get_session(session_id)
-        tool = self._tools.get(tool_name)
-        if not tool:
-            yield AgentEvent(session.id, "error", f"Unknown tool: {tool_name}").to_dict()
-            return
-
-        yield AgentEvent(
-            session.id,
-            "tool.started",
-            f"Running `{tool_name}` locally.",
-            {"tool": tool_name},
-        ).to_dict()
-
-        try:
-            result = tool.execute(session=session, input_payload=input_payload)
-        except BrokerError as exc:
-            yield AgentEvent(
-                session.id,
-                "error",
-                str(exc),
-                {"statusCode": exc.status_code, "tool": tool_name},
-            ).to_dict()
-            return
-        except Exception as exc:  # pragma: no cover - defensive catch for local tool failures
-            yield AgentEvent(
-                session.id,
-                "error",
-                f"Tool `{tool_name}` failed: {exc}",
-                {"statusCode": 500, "tool": tool_name},
-            ).to_dict()
-            return
-
-        session.messages.append({"role": "system", "content": result.to_context_message()})
-        session.touch(self._now())
-        yield AgentEvent(
-            session.id,
-            "tool.output",
-            result.output_text,
-            {
-                "tool": tool_name,
-                "metadata": result.metadata,
-            },
-        ).to_dict()
-        yield AgentEvent(
-            session.id,
-            "tool.completed",
-            f"`{tool_name}` finished.",
-            {
-                "tool": tool_name,
-                "session": session.to_dict(),
-            },
-        ).to_dict()
+        yield from self._execute_tool(session, tool_name, input_payload)
 
     def send_turn(self, session_id: str, prompt: str) -> Iterator[dict[str, object]]:
         session = self.get_session(session_id)
         if not prompt.strip():
-            yield AgentEvent(session.id, "error", "Prompt cannot be empty.").to_dict()
+            yield self._event(session, "error", "Prompt cannot be empty.", {"statusCode": 400})
+            return
+        if session.pending_action:
+            yield self._event(
+                session,
+                "error",
+                "A pending action must be approved or rejected before sending a new turn.",
+                {"statusCode": 409, "action": session.pending_action.to_dict()},
+            )
             return
 
         session.messages.append({"role": "user", "content": prompt.strip()})
         session.touch(self._now())
-        yield AgentEvent(
-            session.id,
+        yield self._event(
+            session,
             "turn.started",
             "Sending prompt to Codex.",
             {
@@ -172,70 +198,9 @@ class AgentService:
                 "model": session.model,
                 "reasoningEffort": session.reasoning_effort,
             },
-        ).to_dict()
+        )
 
-        for _ in range(self.MAX_TOOL_ROUNDS):
-            output_text: str | None = None
-            try:
-                output_text = yield from self._run_model_round(session)
-            except BrokerError as exc:
-                yield AgentEvent(
-                    session.id,
-                    "error",
-                    str(exc),
-                    {"statusCode": exc.status_code},
-                ).to_dict()
-                return
-
-            if output_text is None:
-                return
-
-            tool_call = parse_tool_call(output_text) if session.mode == "agent" else None
-            if not tool_call:
-                session.messages.append({"role": "assistant", "content": output_text})
-                session.touch(self._now())
-                if output_text:
-                    yield AgentEvent(
-                        session.id,
-                        "model.delta",
-                        output_text,
-                    ).to_dict()
-                yield AgentEvent(
-                    session.id,
-                    "turn.completed",
-                    "Codex responded.",
-                    {
-                        "outputText": output_text,
-                        "session": session.to_dict(),
-                    },
-                ).to_dict()
-                return
-
-            yield AgentEvent(
-                session.id,
-                "tool.requested",
-                f"Model requested `{tool_call.tool_name}`.",
-                {
-                    "tool": tool_call.tool_name,
-                },
-            ).to_dict()
-
-            tool_completed = False
-            for tool_event in self.execute_tool(session.id, tool_call.tool_name, tool_call.input_payload):
-                yield tool_event
-                if tool_event.get("kind") == "error":
-                    return
-                if tool_event.get("kind") == "tool.completed":
-                    tool_completed = True
-            if not tool_completed:
-                return
-
-        yield AgentEvent(
-            session.id,
-            "error",
-            "The agent reached the maximum number of local tool rounds for this turn.",
-            {"statusCode": 409},
-        ).to_dict()
+        yield from self._continue_turn(session, start_round=0)
 
     def _resolve_cwd_for_new_session(self, workspace_root: Path, cwd: str | None) -> Path:
         if not cwd:
@@ -287,21 +252,22 @@ class AgentService:
         ):
             kind = str(event.get("kind") or "")
             if kind == "status":
-                yield AgentEvent(
-                    session.id,
+                yield self._event(
+                    session,
                     "model.status",
                     str(event.get("message") or "Connecting to Codex..."),
-                ).to_dict()
+                )
                 continue
             if kind == "delta" and isinstance(event.get("delta"), str):
                 output_chunks.append(event["delta"])
                 continue
             if kind == "error":
-                yield AgentEvent(
-                    session.id,
+                yield self._event(
+                    session,
                     "error",
                     str(event.get("message") or "Codex returned an error."),
-                ).to_dict()
+                    {"statusCode": 502},
+                )
                 return None
         return "".join(output_chunks)
 
@@ -315,3 +281,172 @@ class AgentService:
                 continue
             visible.append(descriptor)
         return visible
+
+    def _continue_turn(self, session: AgentSession, *, start_round: int) -> Iterator[dict[str, object]]:
+        for round_index in range(start_round, self.MAX_TOOL_ROUNDS):
+            output_text: str | None = None
+            try:
+                output_text = yield from self._run_model_round(session)
+            except BrokerError as exc:
+                yield self._event(session, "error", str(exc), {"statusCode": exc.status_code})
+                return
+
+            if output_text is None:
+                return
+
+            tool_call = parse_tool_call(output_text) if session.mode == "agent" else None
+            if not tool_call:
+                session.messages.append({"role": "assistant", "content": output_text})
+                session.touch(self._now())
+                if output_text:
+                    yield self._event(session, "model.delta", output_text)
+                yield self._event(
+                    session,
+                    "turn.completed",
+                    "Codex responded.",
+                    {
+                        "outputText": output_text,
+                        "session": session.to_dict(),
+                    },
+                )
+                return
+
+            tool = self._tools.get(tool_call.tool_name)
+            if not tool:
+                yield self._event(
+                    session,
+                    "error",
+                    f"Unknown tool: {tool_call.tool_name}",
+                    {"statusCode": 404, "tool": tool_call.tool_name},
+                )
+                return
+
+            descriptor = tool.descriptor
+            if self._requires_approval(session, descriptor):
+                action = AgentAction(
+                    id=str(uuid.uuid4()),
+                    session_id=session.id,
+                    tool_name=tool_call.tool_name,
+                    input_payload=tool_call.input_payload,
+                    status="pending",
+                    created_at=self._now(),
+                    next_round_index=round_index + 1,
+                    tool_requires_write=descriptor.requires_write,
+                    tool_requires_full_access=descriptor.requires_full_access,
+                )
+                session.pending_action = action
+                session.touch(self._now())
+                yield self._event(
+                    session,
+                    "action.required",
+                    f"Approval required for `{tool_call.tool_name}`.",
+                    {"action": action.to_dict(), "session": session.to_dict()},
+                )
+                return
+
+            yield self._event(
+                session,
+                "tool.requested",
+                f"Model requested `{tool_call.tool_name}`.",
+                {"tool": tool_call.tool_name},
+            )
+            tool_completed = yield from self._execute_tool_and_emit(
+                session,
+                tool_name=tool_call.tool_name,
+                input_payload=tool_call.input_payload,
+            )
+            if not tool_completed:
+                return
+
+        yield self._event(
+            session,
+            "error",
+            "The agent reached the maximum number of local tool rounds for this turn.",
+            {"statusCode": 409},
+        )
+
+    def _execute_tool(self, session: AgentSession, tool_name: str, input_payload: Any) -> Iterator[dict[str, object]]:
+        yield from self._execute_tool_and_emit(session, tool_name=tool_name, input_payload=input_payload)
+
+    def _execute_tool_and_emit(self, session: AgentSession, *, tool_name: str, input_payload: Any) -> Iterator[dict[str, object] | bool]:
+        tool = self._tools.get(tool_name)
+        if not tool:
+            yield self._event(session, "error", f"Unknown tool: {tool_name}", {"statusCode": 404, "tool": tool_name})
+            return False
+
+        yield self._event(
+            session,
+            "tool.started",
+            f"Running `{tool_name}` locally.",
+            {"tool": tool_name},
+        )
+
+        try:
+            result = tool.execute(session=session, input_payload=input_payload)
+        except BrokerError as exc:
+            yield self._event(
+                session,
+                "error",
+                str(exc),
+                {"statusCode": exc.status_code, "tool": tool_name},
+            )
+            return False
+        except Exception as exc:  # pragma: no cover
+            yield self._event(
+                session,
+                "error",
+                f"Tool `{tool_name}` failed: {exc}",
+                {"statusCode": 500, "tool": tool_name},
+            )
+            return False
+
+        session.messages.append({"role": "system", "content": result.to_context_message()})
+        session.touch(self._now())
+        yield self._event(
+            session,
+            "tool.output",
+            result.output_text,
+            {
+                "tool": tool_name,
+                "metadata": result.metadata,
+            },
+        )
+        yield self._event(
+            session,
+            "tool.completed",
+            f"`{tool_name}` finished.",
+            {
+                "tool": tool_name,
+                "session": session.to_dict(),
+            },
+        )
+        return True
+
+    def _requires_approval(self, session: AgentSession, descriptor: ToolDescriptor) -> bool:
+        policy = session.approval_policy
+        if policy == "auto":
+            return False
+        if policy == "auto-edit":
+            return descriptor.requires_write or descriptor.requires_full_access
+        return True
+
+    def _event(
+        self,
+        session: AgentSession,
+        kind: str,
+        message: str | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, object]:
+        session.event_sequence += 1
+        event = AgentEvent(
+            session_id=session.id,
+            kind=kind,
+            message=message,
+            data={
+                "eventId": str(uuid.uuid4()),
+                "createdAt": self._now(),
+                "sequence": session.event_sequence,
+                **(data or {}),
+            },
+        )
+        return event.to_dict()

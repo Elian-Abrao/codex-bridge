@@ -69,7 +69,7 @@ class AgentServiceTests(unittest.TestCase):
                 workspace_root=workspace,
                 now=lambda: 1_000,
             )
-            session = service.create_session(mode="agent", permission_profile="read-only")
+            session = service.create_session(mode="agent", permission_profile="read-only", approval_policy="auto")
 
             events = list(service.send_turn(session.id, "Inspect the file"))
 
@@ -78,6 +78,47 @@ class AgentServiceTests(unittest.TestCase):
             self.assertEqual(events[-1]["kind"], "turn.completed")
             self.assertEqual(events[-1]["outputText"], "I inspected the file and I am ready.")
             self.assertIn("agent context", service.get_session(session.id).messages[-2]["content"])
+
+    def test_manual_approval_creates_pending_action_and_resume_after_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            (workspace / "context.txt").write_text("agent context", encoding="utf-8")
+            service = AgentService(
+                chat_service=FakeChatService(
+                    responses=[
+                        [
+                            {"kind": "status", "message": "Connecting to codex..."},
+                            {
+                                "kind": "delta",
+                                "delta": '<tool_call>{"tool":"read_file","input":"context.txt"}</tool_call>',
+                            },
+                        ],
+                        [
+                            {"kind": "status", "message": "Connecting to codex..."},
+                            {"kind": "delta", "delta": "Approved flow complete."},
+                        ],
+                    ]
+                ),
+                tools=[ReadFileTool(), WriteFileTool(), ShellTool()],
+                workspace_root=workspace,
+                now=lambda: 1_000,
+            )
+            session = service.create_session(mode="agent", permission_profile="read-only", approval_policy="manual")
+
+            first_events = list(service.send_turn(session.id, "Inspect the file"))
+
+            self.assertEqual(first_events[-1]["kind"], "action.required")
+            self.assertEqual(service.get_session(session.id).status, "awaiting_approval")
+            pending_action = service.get_session(session.id).pending_action
+            assert pending_action is not None
+
+            second_events = list(service.approve_action(session.id, pending_action.id))
+
+            self.assertEqual(second_events[0]["kind"], "action.approved")
+            self.assertTrue(any(event["kind"] == "tool.completed" for event in second_events))
+            self.assertEqual(second_events[-1]["kind"], "turn.completed")
+            self.assertEqual(second_events[-1]["outputText"], "Approved flow complete.")
+            self.assertIsNone(service.get_session(session.id).pending_action)
 
     def test_workspace_write_can_write_and_read_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

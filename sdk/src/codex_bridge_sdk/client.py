@@ -5,6 +5,10 @@ from typing import Any, Callable, Iterator
 from urllib import error, request
 
 from .types import (
+    AgentSessionCreateRequest,
+    AgentSessionResponse,
+    AgentToolsResponse,
+    AgentTurnResponse,
     AuthStateSnapshot,
     BridgeChatRequest,
     BridgeChatResponse,
@@ -135,6 +139,53 @@ class CodexBridgeClient:
 
     def chat(self, request_payload: BridgeChatRequest) -> BridgeChatResponse:
         return self._request_json("POST", _build_api_path("/chat"), request_payload)  # type: ignore[return-value]
+
+    def list_agent_tools(self) -> AgentToolsResponse:
+        return self._request_json("GET", _build_api_path("/agent/tools"))  # type: ignore[return-value]
+
+    def create_agent_session(self, request_payload: AgentSessionCreateRequest | None = None) -> AgentSessionResponse:
+        return self._request_json("POST", _build_api_path("/agent/sessions"), request_payload or {})  # type: ignore[return-value]
+
+    def get_agent_session(self, session_id: str) -> AgentSessionResponse:
+        return self._request_json("GET", _build_api_path(f"/agent/sessions/{session_id}"))  # type: ignore[return-value]
+
+    def reset_agent_session(self, session_id: str) -> AgentSessionResponse:
+        return self._request_json("POST", _build_api_path(f"/agent/sessions/{session_id}/reset"))  # type: ignore[return-value]
+
+    def set_agent_permissions(self, session_id: str, permission_profile: str) -> AgentSessionResponse:
+        return self._request_json(
+            "POST",
+            _build_api_path(f"/agent/sessions/{session_id}/permissions"),
+            {"permissionProfile": permission_profile},
+        )  # type: ignore[return-value]
+
+    def set_agent_approval_policy(self, session_id: str, approval_policy: str) -> AgentSessionResponse:
+        return self._request_json(
+            "POST",
+            _build_api_path(f"/agent/sessions/{session_id}/approval-policy"),
+            {"approvalPolicy": approval_policy},
+        )  # type: ignore[return-value]
+
+    def send_agent_turn(self, session_id: str, prompt: str) -> AgentTurnResponse:
+        return self._request_json(
+            "POST",
+            _build_api_path(f"/agent/sessions/{session_id}/turns"),
+            {"prompt": prompt},
+        )  # type: ignore[return-value]
+
+    def approve_agent_action(self, session_id: str, action_id: str) -> AgentTurnResponse:
+        return self._request_json(
+            "POST",
+            _build_api_path(f"/agent/sessions/{session_id}/actions/{action_id}/approve"),
+        )  # type: ignore[return-value]
+
+    def reject_agent_action(self, session_id: str, action_id: str, reason: str | None = None) -> AgentTurnResponse:
+        payload = {"reason": reason} if reason else {}
+        return self._request_json(
+            "POST",
+            _build_api_path(f"/agent/sessions/{session_id}/actions/{action_id}/reject"),
+            payload,
+        )  # type: ignore[return-value]
 
     def iter_stream_chat(
         self,

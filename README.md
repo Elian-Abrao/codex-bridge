@@ -108,6 +108,7 @@ The initial agent mode supports:
 
 - session state
 - permission profiles: `read-only`, `workspace-write`, `full-access`
+- approval policies: `manual`, `auto-edit`, `auto`
 - local tools: `read_file`, `write_file`, `shell`
 - model-driven local tool rounds inside the same agent turn
 
@@ -115,6 +116,7 @@ Core agent commands:
 
 - `/status`
 - `/permissions [profile]`
+- `/approvals [policy]`
 - `/tools`
 - `/cwd [path]`
 - `/read <path>`
@@ -144,6 +146,15 @@ The public API is versioned under `/v1`.
 - `GET /v1/providers/codex/options`
 - `POST /v1/chat`
 - `POST /v1/chat/stream`
+- `GET /v1/agent/tools`
+- `POST /v1/agent/sessions`
+- `GET /v1/agent/sessions/{session_id}`
+- `POST /v1/agent/sessions/{session_id}/turns`
+- `POST /v1/agent/sessions/{session_id}/reset`
+- `POST /v1/agent/sessions/{session_id}/permissions`
+- `POST /v1/agent/sessions/{session_id}/approval-policy`
+- `POST /v1/agent/sessions/{session_id}/actions/{action_id}/approve`
+- `POST /v1/agent/sessions/{session_id}/actions/{action_id}/reject`
 
 Example:
 

@@ -14,6 +14,25 @@ from codex_bridge.bootstrap.runtime import create_runtime
 from codex_bridge.interfaces.http.server import create_handler
 
 
+class FakeAgentChatService:
+    def __init__(self) -> None:
+        self.responses = [
+            [
+                {"kind": "status", "message": "Connecting to codex..."},
+                {"kind": "delta", "delta": '<tool_call>{"tool":"read_file","input":"README.md"}</tool_call>'},
+            ],
+            [
+                {"kind": "status", "message": "Connecting to codex..."},
+                {"kind": "delta", "delta": "Approved by API."},
+            ],
+        ]
+
+    def stream_chat(self, request_payload):  # type: ignore[no-untyped-def]
+        events = self.responses.pop(0)
+        for event in events:
+            yield event
+
+
 class BrokerApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -81,6 +100,41 @@ class BrokerApiTests(unittest.TestCase):
         )
         self.assertEqual(status, 401)
         self.assertIn("No authenticated Codex session", payload["error"])
+
+    def test_agent_session_routes_cover_pending_action_and_approval(self) -> None:
+        self.runtime.agent_service._chat_service = FakeAgentChatService()
+
+        status, payload = self.request(
+            "POST",
+            f"{BRIDGE_API_PREFIX}/agent/sessions",
+            {"permissionProfile": "read-only", "approvalPolicy": "manual"},
+        )
+        self.assertEqual(status, 200)
+        session_id = str(payload["session"]["id"])
+
+        status, payload = self.request("GET", f"{BRIDGE_API_PREFIX}/agent/tools")
+        self.assertEqual(status, 200)
+        self.assertGreaterEqual(len(payload["tools"]), 3)
+
+        status, payload = self.request(
+            "POST",
+            f"{BRIDGE_API_PREFIX}/agent/sessions/{session_id}/turns",
+            {"prompt": "Inspect the repository README"},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["session"]["status"], "awaiting_approval")
+        self.assertEqual(payload["events"][-1]["kind"], "action.required")
+        action_id = str(payload["session"]["pendingAction"]["id"])
+
+        status, payload = self.request(
+            "POST",
+            f"{BRIDGE_API_PREFIX}/agent/sessions/{session_id}/actions/{action_id}/approve",
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["events"][0]["kind"], "action.approved")
+        self.assertEqual(payload["events"][-1]["kind"], "turn.completed")
+        self.assertEqual(payload["events"][-1]["outputText"], "Approved by API.")
+        self.assertEqual(payload["session"]["status"], "idle")
 
 
 if __name__ == "__main__":

@@ -136,12 +136,20 @@ Inside `agent`, validate the first local-runtime commands:
 
 - `/tools`
 - `/permissions workspace-write`
+- `/approvals manual`
 - `/write notes.txt hello`
 - `/read notes.txt`
 - `/permissions full-access`
 - `/shell pwd`
 
-The automatic model-driven tool loop is covered in unit tests. See `tests/unit/test_agent_service.py` for the case where the model requests `read_file`, the runtime executes it, and the same turn resumes with a final answer.
+The automatic model-driven tool loop is covered in unit tests. See `tests/unit/test_agent_service.py` for:
+
+- automatic tool execution with `approvalPolicy=auto`
+- pending action creation with `approvalPolicy=manual`
+- approve-and-resume on the same turn
+
+HTTP agent routes are covered in `tests/integration/test_http_api.py`.
+SDK client coverage for the new agent endpoints is in `sdk/tests/test_client.py`.
 
 6. Exercise the terminal-oriented commands:
 

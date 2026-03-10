@@ -13,7 +13,7 @@ from pathlib import Path
 
 from ..bootstrap.config import DEFAULT_BIND_HOST, DEFAULT_BIND_PORT, load_config
 from ..bootstrap.runtime import create_runtime
-from ..domain.agent import normalize_permission_profile
+from ..domain.agent import normalize_approval_policy, normalize_permission_profile
 from ..domain.codex import DEFAULT_CODEX_MODEL, normalize_reasoning_effort
 from ..domain.errors import BrokerError
 from .http.server import run_server
@@ -248,43 +248,80 @@ def _print_agent_session_status(session: dict[str, object]) -> None:
     print(f"Model: {session.get('model')}")
     print(f"Reasoning: {session.get('reasoningEffort')}")
     print(f"Permissions: {session.get('permissionProfile')}")
+    print(f"Approval policy: {session.get('approvalPolicy')}")
     print(f"Workspace: {session.get('workspaceRoot')}")
     print(f"CWD: {session.get('cwd')}")
     print(f"Messages in context: {session.get('messageCount')}")
+    if isinstance(session.get("pendingAction"), dict):
+        pending = session["pendingAction"]
+        print(f"Pending action: {pending.get('tool')} ({pending.get('id')})")
 
-
-def _run_agent_turn(runtime, session_id: str, prompt: str) -> dict[str, object]:
+def _run_agent_turn(runtime, session_id: str, prompt: str, *, interactive_approvals: bool = False) -> dict[str, object]:
     output_parts: list[str] = []
     session_payload: dict[str, object] | None = None
+    events: list[dict[str, object]] = []
 
-    for event in runtime.agent_service.send_turn(session_id, prompt):
-        kind = event.get("kind")
-        if kind == "turn.started":
-            continue
-        if kind == "model.status":
-            print(f"[status] {event.get('message')}")
-            continue
-        if kind == "tool.requested":
-            print(f"[agent] {event.get('message')}")
-            continue
-        if kind == "tool.started":
-            print(f"[tool] {event.get('message')}")
-            continue
-        if kind == "tool.output" and isinstance(event.get("message"), str):
-            print(event["message"])
-            continue
-        if kind == "tool.completed":
-            continue
-        if kind == "model.delta" and isinstance(event.get("message"), str):
-            chunk = event["message"]
-            output_parts.append(chunk)
-            print(chunk, end="", flush=True)
-            continue
-        if kind == "error":
-            print()
-            raise BrokerError(int(event.get("statusCode") or 500), str(event.get("message") or "Agent runtime failed."))
-        if kind == "turn.completed":
-            session_payload = event.get("session") if isinstance(event.get("session"), dict) else None
+    def consume(event_stream) -> None:
+        nonlocal session_payload
+        for event in event_stream:
+            events.append(event)
+            kind = event.get("kind")
+            if kind == "turn.started":
+                continue
+            if kind == "model.status":
+                print(f"[status] {event.get('message')}")
+                continue
+            if kind == "tool.requested":
+                print(f"[agent] {event.get('message')}")
+                continue
+            if kind == "action.required":
+                action = event.get("action")
+                if isinstance(action, dict):
+                    print(f"[approval] {event.get('message')}")
+                    print(f"[approval] tool={action.get('tool')} input={action.get('input')}")
+                    if interactive_approvals:
+                        try:
+                            decision = input("Approve action? [y/N]: ").strip().lower()
+                        except (EOFError, KeyboardInterrupt):
+                            print()
+                            decision = ""
+                        if decision in {"y", "yes"}:
+                            consume(runtime.agent_service.approve_action(session_id, str(action.get("id") or "")))
+                        else:
+                            consume(
+                                runtime.agent_service.reject_action(
+                                    session_id,
+                                    str(action.get("id") or ""),
+                                    "Rejected from interactive CLI.",
+                                )
+                            )
+                continue
+            if kind == "action.approved":
+                print(f"[approval] {event.get('message')}")
+                continue
+            if kind == "action.rejected":
+                print(f"[approval] {event.get('message')}")
+                continue
+            if kind == "tool.started":
+                print(f"[tool] {event.get('message')}")
+                continue
+            if kind == "tool.output" and isinstance(event.get("message"), str):
+                print(event["message"])
+                continue
+            if kind == "tool.completed":
+                continue
+            if kind == "model.delta" and isinstance(event.get("message"), str):
+                chunk = event["message"]
+                output_parts.append(chunk)
+                print(chunk, end="", flush=True)
+                continue
+            if kind == "error":
+                print()
+                raise BrokerError(int(event.get("statusCode") or 500), str(event.get("message") or "Agent runtime failed."))
+            if kind == "turn.completed":
+                session_payload = event.get("session") if isinstance(event.get("session"), dict) else None
+
+    consume(runtime.agent_service.send_turn(session_id, prompt))
 
     if output_parts:
         print()
@@ -292,6 +329,7 @@ def _run_agent_turn(runtime, session_id: str, prompt: str) -> dict[str, object]:
     return {
         "session": session_payload or runtime.agent_service.get_session(session_id).to_dict(),
         "outputText": "".join(output_parts),
+        "events": events,
     }
 
 
@@ -316,7 +354,7 @@ def _run_agent_tool(runtime, session_id: str, tool_name: str, input_payload) -> 
 def _run_interactive_agent(runtime, session) -> None:
     print("Interactive agent")
     print(
-        "Commands: /help /status /permissions [profile] /tools /cwd [path] /model <name> /reasoning <level> /read <path> /write <path> <content> /shell <command> /reset /logout /exit"
+        "Commands: /help /status /permissions [profile] /approvals [policy] /tools /cwd [path] /model <name> /reasoning <level> /read <path> /write <path> <content> /shell <command> /reset /logout /exit"
     )
 
     while True:
@@ -335,7 +373,7 @@ def _run_interactive_agent(runtime, session) -> None:
             return
         if prompt == "/help":
             print(
-                "Commands: /help /status /permissions [profile] /tools /cwd [path] /model <name> /reasoning <level> /read <path> /write <path> <content> /shell <command> /reset /logout /exit"
+                "Commands: /help /status /permissions [profile] /approvals [policy] /tools /cwd [path] /model <name> /reasoning <level> /read <path> /write <path> <content> /shell <command> /reset /logout /exit"
             )
             continue
         if prompt == "/status":
@@ -351,6 +389,14 @@ def _run_interactive_agent(runtime, session) -> None:
             else:
                 session = runtime.agent_service.set_permissions(session.id, parts[1].strip())
                 print(f"Permissions set to {session.permission_profile}")
+            continue
+        if prompt.startswith("/approvals"):
+            parts = prompt.split(" ", 1)
+            if len(parts) == 1 or not parts[1].strip():
+                print(f"Approval policy: {session.approval_policy}")
+            else:
+                session = runtime.agent_service.set_approval_policy(session.id, parts[1].strip())
+                print(f"Approval policy set to {session.approval_policy}")
             continue
         if prompt.startswith("/cwd"):
             parts = prompt.split(" ", 1)
@@ -408,7 +454,7 @@ def _run_interactive_agent(runtime, session) -> None:
             continue
 
         try:
-            result = _run_agent_turn(runtime, session.id, prompt)
+            result = _run_agent_turn(runtime, session.id, prompt, interactive_approvals=True)
         except BrokerError as exc:
             print(f"[error] {exc}")
             continue
@@ -447,6 +493,7 @@ def build_parser() -> argparse.ArgumentParser:
     agent_parser.add_argument("--model", default=DEFAULT_CODEX_MODEL)
     agent_parser.add_argument("--reasoning", default="medium")
     agent_parser.add_argument("--permissions", default="read-only")
+    agent_parser.add_argument("--approval-policy", default="manual")
     agent_parser.add_argument("--cwd", default=None)
 
     return parser
@@ -645,6 +692,7 @@ def _run_agent(
     model: str,
     reasoning: str,
     permission_profile: str,
+    approval_policy: str,
     cwd: str | None,
     *,
     as_json: bool,
@@ -655,6 +703,7 @@ def _run_agent(
         model=model,
         reasoning_effort=reasoning,
         permission_profile=permission_profile,
+        approval_policy=approval_policy,
         cwd=cwd,
     )
 
@@ -668,10 +717,11 @@ def _run_agent(
         )
         return
 
-    result = _run_agent_turn(runtime, session.id, prompt)
+    result = _run_agent_turn(runtime, session.id, prompt, interactive_approvals=False)
     payload = {
         "session": result["session"],
         "outputText": result["outputText"],
+        "events": result["events"],
     }
     if as_json:
         _print_json(payload)
@@ -736,6 +786,7 @@ def main() -> None:
                 args.model,
                 args.reasoning,
                 normalize_permission_profile(args.permissions),
+                normalize_approval_policy(args.approval_policy),
                 args.cwd,
                 as_json=args.json,
             )

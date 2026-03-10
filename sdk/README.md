@@ -47,6 +47,42 @@ reply = client.chat(
 print(reply["outputText"])
 ```
 
+## Agent API
+
+The SDK can also consume the local agent runtime:
+
+```python
+from codex_bridge_sdk import create_bridge_client
+
+client = create_bridge_client("http://127.0.0.1:47831")
+session = client.create_agent_session(
+    {
+        "permissionProfile": "read-only",
+        "approvalPolicy": "manual",
+    }
+)["session"]
+
+turn = client.send_agent_turn(session["id"], "Inspect the repository README.")
+events = turn["events"]
+
+pending = turn["session"].get("pendingAction")
+if pending:
+    approved = client.approve_agent_action(session["id"], pending["id"])
+    print(approved["events"][-1]["outputText"])
+```
+
+Available agent client methods:
+
+- `list_agent_tools()`
+- `create_agent_session(...)`
+- `get_agent_session(session_id)`
+- `reset_agent_session(session_id)`
+- `set_agent_permissions(session_id, permission_profile)`
+- `set_agent_approval_policy(session_id, approval_policy)`
+- `send_agent_turn(session_id, prompt)`
+- `approve_agent_action(session_id, action_id)`
+- `reject_agent_action(session_id, action_id, reason=None)`
+
 ## FastAPI Example
 
 A minimal proxy example lives in [`examples/fastapi_app.py`](./examples/fastapi_app.py).

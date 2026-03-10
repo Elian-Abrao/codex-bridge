@@ -119,6 +119,7 @@ It introduces:
 - in-memory sessions
 - event-oriented execution for model turns and tool runs
 - permission profiles
+- approval policies
 - local tools wired through a registry
 - a local tool-call loop inside the same agent turn
 
@@ -127,6 +128,12 @@ Current permission profiles:
 - `read-only`
 - `workspace-write`
 - `full-access`
+
+Current approval policies:
+
+- `manual`
+- `auto-edit`
+- `auto`
 
 Current tools:
 
@@ -141,7 +148,9 @@ Current primary interface:
 Current tool-call behavior:
 
 - the model may request one local tool at a time
-- the runtime executes the tool locally
+- the runtime can pause the turn and create a pending action when approval is required
+- the operator can approve or reject the action from CLI or HTTP
+- after approval or rejection, the same turn resumes
 - the tool output is injected back into the conversation as local system context
 - the turn continues automatically until the model returns a normal answer or the tool-round limit is reached
 
@@ -160,6 +169,21 @@ Current tool-call behavior:
 - `GET /v1/providers/codex/options`
 - `POST /v1/chat`
 - `POST /v1/chat/stream`
+- `GET /v1/agent/tools`
+- `POST /v1/agent/sessions`
+- `GET /v1/agent/sessions/{session_id}`
+- `POST /v1/agent/sessions/{session_id}/turns`
+- `POST /v1/agent/sessions/{session_id}/reset`
+- `POST /v1/agent/sessions/{session_id}/permissions`
+- `POST /v1/agent/sessions/{session_id}/approval-policy`
+- `POST /v1/agent/sessions/{session_id}/actions/{action_id}/approve`
+- `POST /v1/agent/sessions/{session_id}/actions/{action_id}/reject`
+
+Agent events now carry stable runtime metadata:
+
+- `eventId`
+- `createdAt`
+- `sequence`
 
 ## Storage Strategy
 
