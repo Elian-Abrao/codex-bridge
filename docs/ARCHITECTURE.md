@@ -15,84 +15,78 @@ It owns:
 
 It does not try to be a generic multi-provider gateway.
 
-## Layers
+## Layered Design
 
-## 1. CLI
+### 1. `domain/`
 
-Entry point:
+Purpose:
 
-- `codex-bridge`
+- define broker entities and policies
+- expose ports for adapters
+- keep pure rules independent from network, disk, or CLI
 
-Responsibilities:
+Key modules:
 
-- start the broker
-- start login
-- show state and available models
-- run a quick chat request
+- `src/codex_bridge/domain/auth.py`
+- `src/codex_bridge/domain/callbacks.py`
+- `src/codex_bridge/domain/codex.py`
+- `src/codex_bridge/domain/errors.py`
+- `src/codex_bridge/domain/ports.py`
 
-Implementation:
+### 2. `app/`
 
-- `src/codex_bridge/cli.py`
+Purpose:
 
-## 2. Runtime
+- orchestrate use cases
+- coordinate ports and domain policies
+- keep workflow logic separate from concrete adapters
 
-Responsibilities:
+Key modules:
 
-- assemble auth and Codex services
-- load configuration
-- wire storage and transport together
+- `src/codex_bridge/app/auth_service.py`
+- `src/codex_bridge/app/chat_service.py`
 
-Implementation:
+### 3. `infra/`
 
-- `src/codex_bridge/runtime.py`
+Purpose:
 
-## 3. Auth
+- implement the ports defined by `domain`
+- talk to OAuth, Codex HTTP endpoints, local callback server, filesystem, and keyring
 
-Responsibilities:
+Key modules:
 
-- PKCE generation
-- OAuth authorization URL
-- local callback server
-- manual callback fallback
-- token exchange
-- refresh flow
-- session lifecycle
+- `src/codex_bridge/infra/auth/callback_server.py`
+- `src/codex_bridge/infra/auth/oauth_gateway.py`
+- `src/codex_bridge/infra/auth/jwt_claims.py`
+- `src/codex_bridge/infra/auth/pkce.py`
+- `src/codex_bridge/infra/codex/http_gateway.py`
+- `src/codex_bridge/infra/storage/session_store.py`
 
-Implementation:
+### 4. `interfaces/`
 
-- `src/codex_bridge/auth.py`
-- `src/codex_bridge/pkce.py`
-- `src/codex_bridge/oauth.py`
-- `src/codex_bridge/callback.py`
-- `src/codex_bridge/session_store.py`
-- `src/codex_bridge/jwt.py`
+Purpose:
 
-## 4. Codex Transport
+- expose the public surfaces of the product
+- keep CLI and HTTP concerns out of the application layer
 
-Responsibilities:
+Key modules:
 
-- normalize model and reasoning values
-- build Codex request payloads
-- map SSE events into broker events
-- expose sync and streaming chat
+- `src/codex_bridge/interfaces/cli.py`
+- `src/codex_bridge/interfaces/http/api.py`
+- `src/codex_bridge/interfaces/http/server.py`
 
-Implementation:
+### 5. `bootstrap/`
 
-- `src/codex_bridge/codex.py`
-- `src/codex_bridge/default_instructions.py`
+Purpose:
 
-## 5. HTTP API
+- resolve configuration
+- compose adapters and services
+- construct the runtime used by CLI and HTTP
 
-Responsibilities:
+Key modules:
 
-- expose the broker contract under `/v1`
-- serialize broker errors consistently
-- expose sync and streaming endpoints
-
-Implementation:
-
-- `src/codex_bridge/api.py`
-- `src/codex_bridge/server.py`
+- `src/codex_bridge/bootstrap/config.py`
+- `src/codex_bridge/bootstrap/runtime.py`
 
 ## API Contract
 
@@ -127,3 +121,12 @@ It does not duplicate:
 - refresh logic
 - callback handling
 - Codex transport logic
+
+## Test Layout
+
+- `tests/unit`
+  - fast tests for application services and storage logic
+- `tests/integration`
+  - HTTP API and runtime wiring tests
+- `tests/e2e`
+  - subprocess-level CLI smoke tests

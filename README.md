@@ -17,10 +17,18 @@ Applications integrate with the broker over HTTP instead of reimplementing OAuth
 ## Repository Layout
 
 ```text
-src/codex_bridge/     broker runtime, auth, CLI, HTTP server
-tests/                broker test suite
+src/codex_bridge/
+  app/                application services and use cases
+  bootstrap/          configuration and runtime composition
+  domain/             entities, policies, and ports
+  infra/              HTTP/OAuth/storage adapters
+  interfaces/         CLI and HTTP entrypoints
+tests/
+  unit/               pure broker unit tests
+  integration/        HTTP API and runtime integration tests
+  e2e/                CLI-level smoke tests
 sdk/                  separate Python SDK package and examples
-docs/                 architecture and publishing guides
+docs/                 architecture, ADRs, and publishing guides
 ```
 
 ## Install
@@ -100,10 +108,74 @@ PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'
 PYTHONPATH=sdk/src python -m unittest discover -s sdk/tests -p 'test_*.py'
 ```
 
+The broker test suite is now organized by scope:
+
+- `tests/unit`: application services and storage adapters
+- `tests/integration`: HTTP API and runtime wiring
+- `tests/e2e`: CLI execution against the package entrypoint
+
 Run the broker directly from source:
 
 ```bash
 PYTHONPATH=src python -m codex_bridge serve
+```
+
+## How To Test It Locally
+
+1. Create a virtual environment and install the broker:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+pip install -e ./sdk
+```
+
+2. Run the automated tests:
+
+```bash
+PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'
+PYTHONPATH=sdk/src python -m unittest discover -s sdk/tests -p 'test_*.py'
+```
+
+3. Start the broker:
+
+```bash
+codex-bridge serve
+```
+
+4. In another terminal, verify the broker:
+
+```bash
+curl http://127.0.0.1:47831/v1/health
+curl http://127.0.0.1:47831/v1/auth/state
+curl http://127.0.0.1:47831/v1/providers/codex/options
+```
+
+5. Authenticate if needed:
+
+```bash
+codex-bridge login
+```
+
+6. Send a real prompt:
+
+```bash
+codex-bridge chat "Reply with OK only."
+```
+
+Or through HTTP:
+
+```bash
+curl -X POST http://127.0.0.1:47831/v1/chat \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "gpt-5.4",
+    "reasoningEffort": "medium",
+    "messages": [
+      { "role": "user", "content": "Reply with OK only." }
+    ]
+  }'
 ```
 
 ## SDK
@@ -119,5 +191,6 @@ pip install codex-bridge-sdk
 ## Documentation
 
 - [Architecture](./docs/ARCHITECTURE.md)
+- [Architecture Decision Record](./docs/adr/0001-layered-architecture.md)
 - [Publishing](./docs/PUBLISHING.md)
 - [SDK](./sdk/README.md)

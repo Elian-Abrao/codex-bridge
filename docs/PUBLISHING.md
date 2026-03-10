@@ -30,7 +30,11 @@ python3 -m build sdk
 Broker source:
 
 - [`pyproject.toml`](../pyproject.toml)
-- [`src/codex_bridge`](../src/codex_bridge)
+- [`src/codex_bridge/bootstrap`](../src/codex_bridge/bootstrap)
+- [`src/codex_bridge/app`](../src/codex_bridge/app)
+- [`src/codex_bridge/domain`](../src/codex_bridge/domain)
+- [`src/codex_bridge/infra`](../src/codex_bridge/infra)
+- [`src/codex_bridge/interfaces`](../src/codex_bridge/interfaces)
 
 Install locally:
 
