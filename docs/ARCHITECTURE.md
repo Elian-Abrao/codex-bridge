@@ -88,6 +88,20 @@ Key modules:
 - `src/codex_bridge/bootstrap/config.py`
 - `src/codex_bridge/bootstrap/runtime.py`
 
+## Runtime Flow
+
+The main runtime is assembled in `bootstrap/runtime.py`:
+
+1. load configuration
+2. create session storage adapter
+3. create OAuth gateway and callback server factory
+4. create the auth application service
+5. create the Codex HTTP gateway
+6. create the chat application service
+7. expose the runtime to CLI and HTTP interfaces
+
+This keeps object graph construction out of the core workflow modules.
+
 ## API Contract
 
 - `GET /v1/health`
@@ -130,3 +144,5 @@ It does not duplicate:
   - HTTP API and runtime wiring tests
 - `tests/e2e`
   - subprocess-level CLI smoke tests
+
+For concrete commands, see [`docs/TESTING.md`](./TESTING.md).

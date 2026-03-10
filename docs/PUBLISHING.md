@@ -78,6 +78,8 @@ pip install codex-bridge-sdk
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'
 PYTHONPATH=sdk/src python -m unittest discover -s sdk/tests -p 'test_*.py'
+PYTHONPATH=src python -m compileall src
+PYTHONPATH=sdk/src python -m compileall sdk/src sdk/examples
 ```
 
 2. Build both Python distributions:

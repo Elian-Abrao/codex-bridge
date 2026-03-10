@@ -2,6 +2,8 @@
 
 Python client for consuming a local `codex-bridge` broker.
 
+This package is intentionally thin. It does not implement OAuth, token refresh, callback handling, or Codex transport rules locally. Those remain inside the broker.
+
 Package name:
 
 ```bash

@@ -192,5 +192,6 @@ pip install codex-bridge-sdk
 
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Architecture Decision Record](./docs/adr/0001-layered-architecture.md)
+- [Testing](./docs/TESTING.md)
 - [Publishing](./docs/PUBLISHING.md)
 - [SDK](./sdk/README.md)
