@@ -13,7 +13,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class CliE2ETests(unittest.TestCase):
-    def _run_cli(self, *args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+    def _run_cli(
+        self,
+        *args: str,
+        input_text: str | None = None,
+        cwd: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(temp_dir.cleanup)
         env = os.environ.copy()
@@ -22,7 +27,7 @@ class CliE2ETests(unittest.TestCase):
         env["CODEX_BRIDGE_AUTH_STORE_PATH"] = str(Path(temp_dir.name) / "auth" / "session.json")
         return subprocess.run(
             [sys.executable, "-m", "codex_bridge", *args],
-            cwd=REPO_ROOT,
+            cwd=str(cwd or REPO_ROOT),
             env=env,
             text=True,
             capture_output=True,
@@ -57,6 +62,25 @@ class CliE2ETests(unittest.TestCase):
         self.assertIn("Interactive chat", result.stdout)
         self.assertIn("/logout", result.stdout)
         self.assertIn("Session cleared. Exiting interactive chat.", result.stdout)
+
+    def test_agent_interactive_lists_tools(self) -> None:
+        result = self._run_cli("agent", input_text="/tools\n/exit\n")
+        self.assertIn("Interactive agent", result.stdout)
+        self.assertIn("read_file", result.stdout)
+        self.assertIn("write_file", result.stdout)
+        self.assertIn("shell", result.stdout)
+
+    def test_agent_interactive_can_switch_permissions_and_use_workspace_tools(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            result = self._run_cli(
+                "agent",
+                input_text="/permissions workspace-write\n/write notes.txt hello\n/read notes.txt\n/exit\n",
+                cwd=workspace,
+            )
+            self.assertIn("Permissions set to workspace-write", result.stdout)
+            self.assertIn("Wrote", result.stdout)
+            self.assertIn("hello", result.stdout)
 
 
 if __name__ == "__main__":

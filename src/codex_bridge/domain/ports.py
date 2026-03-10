@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Iterator, Protocol
 
+from .agent import AgentSession, ToolDescriptor, ToolResult
 from .auth import AuthSession, CallbackPayload, OAuthLoginTicket
 
 
@@ -54,3 +55,10 @@ class CodexGatewayPort(Protocol):
         reasoning_effort: str,
         messages: list[dict[str, Any]],
     ) -> Iterator[dict[str, Any]]: ...
+
+
+class AgentToolPort(Protocol):
+    @property
+    def descriptor(self) -> ToolDescriptor: ...
+
+    def execute(self, *, session: AgentSession, input_payload: Any) -> ToolResult: ...

@@ -10,7 +10,8 @@ Local Python broker for Codex authentication and chat access.
 - local session persistence and automatic token refresh
 - Codex model and reasoning metadata
 - synchronous and streaming chat endpoints
-- a CLI for operating the broker locally
+- a terminal-first CLI
+- an initial local agent runtime with sessions, permissions, and tools
 
 Applications integrate with the broker over HTTP instead of reimplementing OAuth, callback handling, refresh, and Codex-specific request details.
 
@@ -20,8 +21,8 @@ Applications integrate with the broker over HTTP instead of reimplementing OAuth
 src/codex_bridge/
   app/                application services and use cases
   bootstrap/          configuration and runtime composition
-  domain/             entities, policies, and ports
-  infra/              HTTP/OAuth/storage adapters
+  domain/             entities, agent policies, and ports
+  infra/              HTTP/OAuth/storage/tool adapters
   interfaces/         CLI and HTTP entrypoints
 tests/
   unit/               pure broker unit tests
@@ -94,6 +95,28 @@ Interactive mode supports these slash commands:
 - `/exit`
 
 Use `/logout` to clear the local session and leave the interactive chat immediately.
+
+Start the local agent runtime:
+
+```bash
+codex-bridge agent
+```
+
+The initial agent mode supports:
+
+- session state
+- permission profiles: `read-only`, `workspace-write`, `full-access`
+- local tools: `read_file`, `write_file`, `shell`
+
+Core agent commands:
+
+- `/status`
+- `/permissions [profile]`
+- `/tools`
+- `/cwd [path]`
+- `/read <path>`
+- `/write <path> <content>`
+- `/shell <command>`
 
 Machine-readable output is available for structured commands:
 
@@ -198,6 +221,7 @@ If the browser reaches the success page, the login should finish automatically i
 codex-bridge chat "Reply with OK only."
 codex-bridge chat --stream "Reply with OK only."
 codex-bridge chat --interactive
+codex-bridge agent
 ```
 
 Inside `chat --interactive`, you can use `/logout` to clear the local session and exit the terminal chat.

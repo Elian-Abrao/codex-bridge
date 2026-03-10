@@ -13,6 +13,7 @@ from pathlib import Path
 
 from ..bootstrap.config import DEFAULT_BIND_HOST, DEFAULT_BIND_PORT, load_config
 from ..bootstrap.runtime import create_runtime
+from ..domain.agent import normalize_permission_profile
 from ..domain.codex import DEFAULT_CODEX_MODEL, normalize_reasoning_effort
 from ..domain.errors import BrokerError
 from .http.server import run_server
@@ -72,6 +73,21 @@ def _print_capabilities(capabilities: dict[str, object]) -> None:
             if isinstance(item, dict):
                 marker = " (recommended)" if item.get("recommended") else ""
                 print(f"  - {item.get('id')}{marker}")
+
+
+def _print_tools(tools: list[dict[str, object]]) -> None:
+    print("Tools:")
+    for item in tools:
+        requirements: list[str] = []
+        if item.get("requiresWrite"):
+            requirements.append("workspace-write")
+        if item.get("requiresFullAccess"):
+            requirements.append("full-access")
+        suffix = f" [{', '.join(requirements)}]" if requirements else ""
+        print(f"  - {item.get('name')}{suffix}")
+        description = item.get("description")
+        if isinstance(description, str) and description:
+            print(f"    {description}")
 
 
 def _build_doctor_report(config, state: dict[str, object], capabilities: dict[str, object]) -> dict[str, object]:
@@ -226,6 +242,170 @@ def _run_interactive_chat(runtime, *, model: str, reasoning: str) -> None:
         messages.append({"role": "assistant", "content": str(response["outputText"])})
 
 
+def _print_agent_session_status(session: dict[str, object]) -> None:
+    print(f"Session: {session.get('id')}")
+    print(f"Mode: {session.get('mode')}")
+    print(f"Model: {session.get('model')}")
+    print(f"Reasoning: {session.get('reasoningEffort')}")
+    print(f"Permissions: {session.get('permissionProfile')}")
+    print(f"Workspace: {session.get('workspaceRoot')}")
+    print(f"CWD: {session.get('cwd')}")
+    print(f"Messages in context: {session.get('messageCount')}")
+
+
+def _run_agent_turn(runtime, session_id: str, prompt: str) -> dict[str, object]:
+    output_parts: list[str] = []
+    session_payload: dict[str, object] | None = None
+
+    for event in runtime.agent_service.send_turn(session_id, prompt):
+        kind = event.get("kind")
+        if kind == "turn.started":
+            continue
+        if kind == "model.status":
+            print(f"[status] {event.get('message')}")
+            continue
+        if kind == "model.delta" and isinstance(event.get("message"), str):
+            chunk = event["message"]
+            output_parts.append(chunk)
+            print(chunk, end="", flush=True)
+            continue
+        if kind == "error":
+            print()
+            raise BrokerError(int(event.get("statusCode") or 500), str(event.get("message") or "Agent runtime failed."))
+        if kind == "turn.completed":
+            session_payload = event.get("session") if isinstance(event.get("session"), dict) else None
+
+    if output_parts:
+        print()
+
+    return {
+        "session": session_payload or runtime.agent_service.get_session(session_id).to_dict(),
+        "outputText": "".join(output_parts),
+    }
+
+
+def _run_agent_tool(runtime, session_id: str, tool_name: str, input_payload) -> None:
+    for event in runtime.agent_service.execute_tool(session_id, tool_name, input_payload):
+        kind = event.get("kind")
+        if kind == "tool.started":
+            print(f"[tool] {event.get('message')}")
+            continue
+        if kind == "tool.output" and isinstance(event.get("message"), str):
+            print(event["message"])
+            continue
+        if kind == "tool.completed":
+            session = event.get("session")
+            if isinstance(session, dict):
+                print(f"[tool] Context updated. Messages in context: {session.get('messageCount')}")
+            continue
+        if kind == "error":
+            raise BrokerError(int(event.get("statusCode") or 500), str(event.get("message") or "Tool execution failed."))
+
+
+def _run_interactive_agent(runtime, session) -> None:
+    print("Interactive agent")
+    print(
+        "Commands: /help /status /permissions [profile] /tools /cwd [path] /model <name> /reasoning <level> /read <path> /write <path> <content> /shell <command> /reset /logout /exit"
+    )
+
+    while True:
+        try:
+            prompt = input("agent> ").strip()
+        except EOFError:
+            print()
+            return
+        except KeyboardInterrupt:
+            print()
+            return
+
+        if not prompt:
+            continue
+        if prompt in {"/exit", "/quit"}:
+            return
+        if prompt == "/help":
+            print(
+                "Commands: /help /status /permissions [profile] /tools /cwd [path] /model <name> /reasoning <level> /read <path> /write <path> <content> /shell <command> /reset /logout /exit"
+            )
+            continue
+        if prompt == "/status":
+            _print_agent_session_status(session.to_dict())
+            continue
+        if prompt == "/tools":
+            _print_tools(runtime.agent_service.list_tools())
+            continue
+        if prompt.startswith("/permissions"):
+            parts = prompt.split(" ", 1)
+            if len(parts) == 1 or not parts[1].strip():
+                print(f"Permissions: {session.permission_profile}")
+            else:
+                session = runtime.agent_service.set_permissions(session.id, parts[1].strip())
+                print(f"Permissions set to {session.permission_profile}")
+            continue
+        if prompt.startswith("/cwd"):
+            parts = prompt.split(" ", 1)
+            if len(parts) == 1 or not parts[1].strip():
+                print(f"CWD: {session.cwd}")
+            else:
+                try:
+                    session = runtime.agent_service.set_cwd(session.id, parts[1].strip())
+                    print(f"CWD set to {session.cwd}")
+                except BrokerError as exc:
+                    print(f"[error] {exc}")
+            continue
+        if prompt.startswith("/model "):
+            session = runtime.agent_service.set_model(session.id, prompt.split(" ", 1)[1].strip())
+            print(f"Model set to {session.model}")
+            continue
+        if prompt.startswith("/reasoning "):
+            session = runtime.agent_service.set_reasoning(session.id, prompt.split(" ", 1)[1].strip())
+            print(f"Reasoning set to {session.reasoning_effort}")
+            continue
+        if prompt == "/reset":
+            session = runtime.agent_service.reset_session(session.id)
+            print("Conversation reset.")
+            continue
+        if prompt == "/logout":
+            runtime.auth_service.logout()
+            session = runtime.agent_service.reset_session(session.id)
+            print("Session cleared. Exiting interactive agent.")
+            return
+        if prompt.startswith("/read "):
+            try:
+                _run_agent_tool(runtime, session.id, "read_file", prompt.split(" ", 1)[1].strip())
+                session = runtime.agent_service.get_session(session.id)
+            except BrokerError as exc:
+                print(f"[error] {exc}")
+            continue
+        if prompt.startswith("/write "):
+            remainder = prompt.split(" ", 1)[1].strip()
+            path, _, content = remainder.partition(" ")
+            if not path or not content:
+                print("Usage: /write <path> <content>")
+                continue
+            try:
+                _run_agent_tool(runtime, session.id, "write_file", {"path": path, "content": content})
+                session = runtime.agent_service.get_session(session.id)
+            except BrokerError as exc:
+                print(f"[error] {exc}")
+            continue
+        if prompt.startswith("/shell "):
+            try:
+                _run_agent_tool(runtime, session.id, "shell", prompt.split(" ", 1)[1].strip())
+                session = runtime.agent_service.get_session(session.id)
+            except BrokerError as exc:
+                print(f"[error] {exc}")
+            continue
+
+        try:
+            result = _run_agent_turn(runtime, session.id, prompt)
+        except BrokerError as exc:
+            print(f"[error] {exc}")
+            continue
+        session_payload = result.get("session")
+        if isinstance(session_payload, dict):
+            session = runtime.agent_service.get_session(session.id)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="codex-bridge")
     parser.add_argument("--json", action="store_true", help="Emit structured JSON output when supported.")
@@ -250,6 +430,13 @@ def build_parser() -> argparse.ArgumentParser:
     chat_parser.add_argument("--reasoning", default="medium")
     chat_parser.add_argument("--interactive", action="store_true", help="Start a persistent terminal chat session.")
     chat_parser.add_argument("--stream", action="store_true", help="Stream the response directly to stdout.")
+
+    agent_parser = subparsers.add_parser("agent", help="Start an interactive local agent session.")
+    agent_parser.add_argument("prompt", nargs="*")
+    agent_parser.add_argument("--model", default=DEFAULT_CODEX_MODEL)
+    agent_parser.add_argument("--reasoning", default="medium")
+    agent_parser.add_argument("--permissions", default="read-only")
+    agent_parser.add_argument("--cwd", default=None)
 
     return parser
 
@@ -442,6 +629,46 @@ def _run_chat(
         print(response["outputText"])
 
 
+def _run_agent(
+    prompt_parts: list[str],
+    model: str,
+    reasoning: str,
+    permission_profile: str,
+    cwd: str | None,
+    *,
+    as_json: bool,
+) -> None:
+    runtime = create_runtime()
+    session = runtime.agent_service.create_session(
+        mode="agent",
+        model=model,
+        reasoning_effort=reasoning,
+        permission_profile=permission_profile,
+        cwd=cwd,
+    )
+
+    prompt = " ".join(prompt_parts).strip()
+    if not prompt:
+        if as_json:
+            raise BrokerError(400, "`--json` is not supported with interactive `agent` sessions.")
+        _run_interactive_agent(
+            runtime,
+            session,
+        )
+        return
+
+    result = _run_agent_turn(runtime, session.id, prompt)
+    payload = {
+        "session": result["session"],
+        "outputText": result["outputText"],
+    }
+    if as_json:
+        _print_json(payload)
+    else:
+        print()
+        _print_agent_session_status(result["session"])
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -489,6 +716,17 @@ def main() -> None:
                 as_json=args.json,
                 interactive=args.interactive,
                 stream=args.stream,
+            )
+            return
+
+        if args.command == "agent":
+            _run_agent(
+                args.prompt,
+                args.model,
+                args.reasoning,
+                normalize_permission_profile(args.permissions),
+                args.cwd,
+                as_json=args.json,
             )
             return
 

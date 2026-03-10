@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..app import AuthService, ChatService
+from pathlib import Path
+
+from ..app import AgentService, AuthService, ChatService
 from ..infra.auth.callback_server import LoopbackCallbackServerFactory
 from ..infra.auth.oauth_gateway import CODEX_OAUTH_PROVIDER, OpenAIOAuthGateway
 from ..infra.codex.http_gateway import CodexHttpGateway
 from ..infra.storage.session_store import FileSystemSessionStore
+from ..infra.tools import ReadFileTool, ShellTool, WriteFileTool
 from .config import BrokerConfig, load_config
 
 
@@ -15,6 +18,7 @@ class BrokerRuntime:
     config: BrokerConfig
     auth_service: AuthService
     chat_service: ChatService
+    agent_service: AgentService
 
 
 def create_runtime(config: BrokerConfig | None = None) -> BrokerRuntime:
@@ -48,9 +52,15 @@ def create_runtime(config: BrokerConfig | None = None) -> BrokerRuntime:
         auth_service=auth_service,
         codex_gateway=codex_gateway,
     )
+    agent_service = AgentService(
+        chat_service=chat_service,
+        tools=[ReadFileTool(), WriteFileTool(), ShellTool()],
+        workspace_root=Path.cwd(),
+    )
 
     return BrokerRuntime(
         config=resolved,
         auth_service=auth_service,
         chat_service=chat_service,
+        agent_service=agent_service,
     )

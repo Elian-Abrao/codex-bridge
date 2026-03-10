@@ -2,7 +2,7 @@
 
 ## Product Shape
 
-`codex-bridge` is a local Python broker for Codex.
+`codex-bridge` is a local Python Codex runtime.
 
 It owns:
 
@@ -10,6 +10,8 @@ It owns:
 - loopback callback handling
 - session persistence and refresh
 - Codex request normalization
+- interactive agent sessions
+- local permissions and tool execution
 - HTTP API exposure
 - operator-facing CLI commands
 
@@ -28,6 +30,7 @@ Purpose:
 Key modules:
 
 - `src/codex_bridge/domain/auth.py`
+- `src/codex_bridge/domain/agent.py`
 - `src/codex_bridge/domain/callbacks.py`
 - `src/codex_bridge/domain/codex.py`
 - `src/codex_bridge/domain/errors.py`
@@ -44,6 +47,7 @@ Purpose:
 Key modules:
 
 - `src/codex_bridge/app/auth_service.py`
+- `src/codex_bridge/app/agent_service.py`
 - `src/codex_bridge/app/chat_service.py`
 
 ### 3. `infra/`
@@ -61,6 +65,8 @@ Key modules:
 - `src/codex_bridge/infra/auth/pkce.py`
 - `src/codex_bridge/infra/codex/http_gateway.py`
 - `src/codex_bridge/infra/storage/session_store.py`
+- `src/codex_bridge/infra/tools/filesystem.py`
+- `src/codex_bridge/infra/tools/shell.py`
 
 ### 4. `interfaces/`
 
@@ -98,9 +104,38 @@ The main runtime is assembled in `bootstrap/runtime.py`:
 4. create the auth application service
 5. create the Codex HTTP gateway
 6. create the chat application service
-7. expose the runtime to CLI and HTTP interfaces
+7. create the local tool registry
+8. create the agent application service
+9. expose the runtime to CLI and HTTP interfaces
 
 This keeps object graph construction out of the core workflow modules.
+
+## Agent Runtime
+
+The first agent runtime is local-first and terminal-first.
+
+It introduces:
+
+- in-memory sessions
+- event-oriented execution for model turns and tool runs
+- permission profiles
+- local tools wired through a registry
+
+Current permission profiles:
+
+- `read-only`
+- `workspace-write`
+- `full-access`
+
+Current tools:
+
+- `read_file`
+- `write_file`
+- `shell`
+
+Current primary interface:
+
+- `codex-bridge agent`
 
 ## API Contract
 

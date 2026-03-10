@@ -117,6 +117,7 @@ If the local callback works, the CLI should finish the login automatically witho
 codex-bridge chat "Reply with OK only."
 codex-bridge chat --stream "Reply with OK only."
 codex-bridge chat --interactive
+codex-bridge agent
 ```
 
 Inside the interactive session, validate the slash commands:
@@ -128,6 +129,15 @@ Inside the interactive session, validate the slash commands:
 - `/logout`
 
 `/logout` should clear the saved local session and exit the interactive loop.
+
+Inside `agent`, validate the first local-runtime commands:
+
+- `/tools`
+- `/permissions workspace-write`
+- `/write notes.txt hello`
+- `/read notes.txt`
+- `/permissions full-access`
+- `/shell pwd`
 
 6. Exercise the terminal-oriented commands:
 
