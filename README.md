@@ -78,6 +78,8 @@ Send a quick chat request:
 codex-bridge chat "Explain this repository."
 ```
 
+`chat` is plain chat mode. It should not pretend to execute local commands or inspect your workspace.
+
 Start an interactive terminal session:
 
 ```bash

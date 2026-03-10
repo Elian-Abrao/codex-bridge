@@ -145,6 +145,11 @@ Current tool-call behavior:
 - the tool output is injected back into the conversation as local system context
 - the turn continues automatically until the model returns a normal answer or the tool-round limit is reached
 
+`chat` and `agent` are intentionally distinct:
+
+- `chat` is plain conversational mode with a guard against fake local execution
+- `agent` is the tool-enabled runtime
+
 ## API Contract
 
 - `GET /v1/health`

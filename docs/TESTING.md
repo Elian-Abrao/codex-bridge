@@ -120,6 +120,8 @@ codex-bridge chat --interactive
 codex-bridge agent
 ```
 
+`chat` should stay in plain conversational mode and avoid fake local execution claims. Tool-enabled behavior belongs to `agent`.
+
 Inside the interactive session, validate the slash commands:
 
 - `/status`

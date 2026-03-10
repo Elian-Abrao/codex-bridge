@@ -279,6 +279,7 @@ class AgentService:
         output_chunks: list[str] = []
         for event in self._chat_service.stream_chat(
             {
+                "executionMode": "agent",
                 "model": session.model,
                 "reasoningEffort": session.reasoning_effort,
                 "messages": request_messages,
