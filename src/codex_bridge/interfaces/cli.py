@@ -5,10 +5,11 @@ import json
 import time
 import webbrowser
 
-from .config import DEFAULT_BIND_HOST, DEFAULT_BIND_PORT, DEFAULT_CODEX_MODEL, load_config, normalize_reasoning_effort
-from .errors import BrokerError
-from .runtime import create_runtime
-from .server import run_server
+from ..bootstrap.config import DEFAULT_BIND_HOST, DEFAULT_BIND_PORT, load_config
+from ..bootstrap.runtime import create_runtime
+from ..domain.codex import DEFAULT_CODEX_MODEL, normalize_reasoning_effort
+from ..domain.errors import BrokerError
+from .http.server import run_server
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,26 +35,26 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _wait_for_session(runtime, expires_at: int) -> dict[str, object]:
     while int(time.time() * 1000) < expires_at:
-        state = runtime.auth_service.get_state()
+        state = runtime.auth_service.get_state().to_dict()
         if state.get("session"):
             return state
         if not state.get("activeLogin"):
             return state
         time.sleep(1)
-    return runtime.auth_service.get_state()
+    return runtime.auth_service.get_state().to_dict()
 
 
 def _run_login() -> None:
     runtime = create_runtime()
-    current = runtime.auth_service.get_state()
+    current = runtime.auth_service.get_state().to_dict()
     if current.get("session"):
         print(json.dumps(current, indent=2))
         return
 
     login = runtime.auth_service.start_login()
-    auth_url = str(login["authUrl"])
-    redirect_uri = str(login["redirectUri"])
-    expires_at = int(login["expiresAt"])
+    auth_url = login.auth_url
+    redirect_uri = login.redirect_uri
+    expires_at = login.expires_at
 
     opened = webbrowser.open(auth_url)
     print("No active Codex session found.")
@@ -67,7 +68,7 @@ def _run_login() -> None:
 
     if callback:
         runtime.auth_service.complete_manual_login(callback)
-        print(json.dumps(runtime.auth_service.get_state(), indent=2))
+        print(json.dumps(runtime.auth_service.get_state().to_dict(), indent=2))
         return
 
     final_state = _wait_for_session(runtime, expires_at)
@@ -84,12 +85,12 @@ def _run_logout() -> None:
 
 def _run_status() -> None:
     runtime = create_runtime()
-    print(json.dumps(runtime.auth_service.get_state(), indent=2))
+    print(json.dumps(runtime.auth_service.get_state().to_dict(), indent=2))
 
 
 def _run_models() -> None:
     runtime = create_runtime()
-    capabilities = runtime.codex_service.get_capabilities()
+    capabilities = runtime.chat_service.get_capabilities()
     print(json.dumps(capabilities, indent=2))
 
 
@@ -101,7 +102,7 @@ def _run_chat(prompt_parts: list[str], model: str, reasoning: str) -> None:
         raise BrokerError(400, "Prompt cannot be empty.")
 
     runtime = create_runtime()
-    response = runtime.codex_service.chat(
+    response = runtime.chat_service.chat(
         {
             "model": model,
             "reasoningEffort": normalize_reasoning_effort(reasoning),

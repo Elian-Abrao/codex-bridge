@@ -4,10 +4,10 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
+from ...bootstrap.config import DEFAULT_BIND_HOST, DEFAULT_BIND_PORT
+from ...bootstrap.runtime import BrokerRuntime, create_runtime
+from ...domain.errors import BrokerError
 from .api import handle_json_request, parse_json_body
-from .config import DEFAULT_BIND_HOST, DEFAULT_BIND_PORT
-from .errors import BrokerError
-from .runtime import BrokerRuntime, create_runtime
 
 
 def _format_sse_event(event: dict[str, object]) -> bytes:
@@ -47,7 +47,7 @@ def create_handler(runtime: BrokerRuntime) -> type[BaseHTTPRequestHandler]:
 
         def _handle_stream(self, body: bytes | None) -> None:
             payload = parse_json_body(body)
-            stream = runtime.codex_service.stream_chat(payload)
+            stream = runtime.chat_service.stream_chat(payload)
 
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")

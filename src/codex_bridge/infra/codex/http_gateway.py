@@ -1,23 +1,15 @@
 from __future__ import annotations
 
 import json
-import uuid
 from typing import Any, Iterator
 from urllib import error, request
 
-from .auth import AuthService
-from .config import (
+from ...bootstrap.config import (
     CODEX_ORIGINATOR,
-    DEFAULT_CODEX_MODEL,
-    DEFAULT_CODEX_MODELS,
-    DEFAULT_CODEX_REASONING_EFFORTS,
-    DEFAULT_REASONING_EFFORT,
-    normalize_codex_base_url,
-    normalize_codex_model,
-    normalize_reasoning_effort,
 )
+from ...domain.auth import AuthSession
+from ...domain.errors import BrokerError
 from .default_instructions import CODEX_DEFAULT_INSTRUCTIONS
-from .errors import BrokerError
 
 
 def _to_json_record(value: Any) -> dict[str, Any] | None:
@@ -83,60 +75,39 @@ def _iter_sse_events(response) -> Iterator[dict[str, str]]:
         yield {"event": event_name or "", "data": "\n".join(data_parts)}
 
 
-class CodexService:
-    def __init__(self, *, auth_service: AuthService, base_url: str, user_agent: str) -> None:
-        self._auth_service = auth_service
-        self._base_url = normalize_codex_base_url(base_url)
+def _normalize_codex_base_url(base_url: str) -> str:
+    trimmed = base_url.rstrip("/")
+    if (
+        (trimmed.startswith("https://chatgpt.com") or trimmed.startswith("https://chat.openai.com"))
+        and "/backend-api/codex" not in trimmed
+    ):
+        return f"{trimmed}/backend-api/codex"
+    return trimmed
+
+
+class CodexHttpGateway:
+    def __init__(self, *, base_url: str, user_agent: str) -> None:
+        self._base_url = _normalize_codex_base_url(base_url)
         self._user_agent = user_agent
 
-    def get_capabilities(self) -> dict[str, object]:
-        state = self._auth_service.get_state()
-        session = state.get("session") if isinstance(state, dict) else None
-        account_email = session.get("email") if isinstance(session, dict) else None
-        return {
-            "provider": "codex",
-            "billingMode": "monthly",
-            "requiresAuth": True,
-            "authenticated": bool(session),
-            "accountEmail": account_email,
-            "defaultModel": DEFAULT_CODEX_MODEL,
-            "defaultReasoningEffort": DEFAULT_REASONING_EFFORT,
-            "models": DEFAULT_CODEX_MODELS,
-            "reasoningEfforts": DEFAULT_CODEX_REASONING_EFFORTS,
-        }
-
-    def stream_chat(self, request_payload: dict[str, Any]) -> Iterator[dict[str, Any]]:
-        provider = str(request_payload.get("provider") or "codex").strip()
-        if provider and provider != "codex":
-            raise BrokerError(400, "This broker is Codex-only. Omit `provider` or set it to `codex`.")
-
-        messages = request_payload.get("messages")
-        if not isinstance(messages, list) or not messages:
-            raise BrokerError(400, "`messages` must contain at least one chat message.")
-
-        request_id = str(request_payload.get("requestId") or uuid.uuid4())
-        model = normalize_codex_model(request_payload.get("model") if isinstance(request_payload.get("model"), str) else None)
-        reasoning_effort = normalize_reasoning_effort(
-            request_payload.get("reasoningEffort") if isinstance(request_payload.get("reasoningEffort"), str) else None
-        )
-
-        yield {
-            "requestId": request_id,
-            "provider": "codex",
-            "kind": "status",
-            "message": "Connecting to codex...",
-        }
-
-        session = self._auth_service.get_valid_session()
+    def stream_chat(
+        self,
+        *,
+        request_id: str,
+        session: AuthSession,
+        model: str,
+        reasoning_effort: str,
+        messages: list[dict[str, Any]],
+    ) -> Iterator[dict[str, Any]]:
         headers = {
-            "Authorization": f"Bearer {session.accessToken}",
+            "Authorization": f"Bearer {session.access_token}",
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
             "originator": CODEX_ORIGINATOR,
             "User-Agent": self._user_agent,
         }
-        if session.accountId:
-            headers["ChatGPT-Account-Id"] = session.accountId
+        if session.account_id:
+            headers["ChatGPT-Account-Id"] = session.account_id
 
         body: dict[str, Any] = {
             "model": model,
@@ -198,24 +169,3 @@ class CodexService:
                 if event_type == "response.completed":
                     yield {"requestId": request_id, "provider": "codex", "kind": "done"}
                     return
-
-    def chat(self, request_payload: dict[str, Any]) -> dict[str, Any]:
-        request_id: str | None = None
-        output_text = ""
-        model = normalize_codex_model(request_payload.get("model") if isinstance(request_payload.get("model"), str) else None)
-        for event in self.stream_chat(request_payload):
-            request_id = request_id or str(event.get("requestId"))
-            if event.get("kind") == "delta" and isinstance(event.get("delta"), str):
-                output_text += event["delta"]
-            if event.get("kind") == "error":
-                raise BrokerError(502, str(event.get("message") or "Codex returned an error."))
-
-        if not request_id:
-            raise BrokerError(502, "Bridge stream finished without a request id.")
-
-        return {
-            "requestId": request_id,
-            "provider": "codex",
-            "model": model,
-            "outputText": output_text,
-        }

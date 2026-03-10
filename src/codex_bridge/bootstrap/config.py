@@ -4,13 +4,12 @@ from dataclasses import dataclass
 from os import getenv
 from pathlib import Path
 
+from ..domain.codex import DEFAULT_CODEX_MODEL, DEFAULT_REASONING_EFFORT
 
 BRIDGE_SERVICE_NAME = "codex-bridge"
 BRIDGE_API_PREFIX = "/v1"
 DEFAULT_BIND_HOST = "127.0.0.1"
 DEFAULT_BIND_PORT = 47831
-DEFAULT_CODEX_MODEL = "gpt-5.4"
-DEFAULT_REASONING_EFFORT = "medium"
 DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
 DEFAULT_USER_AGENT = "codex-bridge/python"
 KEYRING_SERVICE_NAME = "codex-bridge"
@@ -55,6 +54,8 @@ class BrokerConfig:
     codex_base_url: str = DEFAULT_CODEX_BASE_URL
     user_agent: str = DEFAULT_USER_AGENT
     prefer_keyring: bool = True
+    login_timeout_ms: int = LOGIN_TIMEOUT_MS
+    min_refresh_delay_ms: int = MIN_REFRESH_DELAY_MS
 
 
 def load_config(
@@ -88,61 +89,6 @@ def load_config(
             if prefer_keyring is not None
             else getenv("CODEX_BRIDGE_DISABLE_KEYRING", "").strip() not in {"1", "true", "yes"}
         ),
+        login_timeout_ms=LOGIN_TIMEOUT_MS,
+        min_refresh_delay_ms=MIN_REFRESH_DELAY_MS,
     )
-
-
-def normalize_codex_base_url(base_url: str) -> str:
-    trimmed = base_url.rstrip("/")
-    if (
-        (trimmed.startswith("https://chatgpt.com") or trimmed.startswith("https://chat.openai.com"))
-        and "/backend-api/codex" not in trimmed
-    ):
-        return f"{trimmed}/backend-api/codex"
-    return trimmed
-
-
-def normalize_codex_model(model: str | None) -> str:
-    normalized = (model or "").strip()
-    if not normalized or normalized == "gpt-5-nano":
-        return DEFAULT_CODEX_MODEL
-    return normalized
-
-
-def normalize_reasoning_effort(effort: str | None) -> str:
-    normalized = (effort or "").strip().lower()
-    if not normalized:
-        return DEFAULT_REASONING_EFFORT
-    if normalized == "minimal":
-        return "low"
-    if normalized in {"none", "low", "medium", "high", "xhigh"}:
-        return normalized
-    return DEFAULT_REASONING_EFFORT
-
-DEFAULT_CODEX_REASONING_EFFORTS = [
-    {
-        "id": "none",
-        "label": "None",
-        "description": "Fastest profile with reasoning effectively disabled.",
-    },
-    {
-        "id": "low",
-        "label": "Low",
-        "description": "Light reasoning for straightforward tasks.",
-    },
-    {
-        "id": "medium",
-        "label": "Medium",
-        "description": "Balanced reasoning depth for most requests.",
-        "recommended": True,
-    },
-    {
-        "id": "high",
-        "label": "High",
-        "description": "More deliberate reasoning for harder prompts.",
-    },
-    {
-        "id": "xhigh",
-        "label": "XHigh",
-        "description": "Maximum reasoning depth for the hardest prompts.",
-    },
-]

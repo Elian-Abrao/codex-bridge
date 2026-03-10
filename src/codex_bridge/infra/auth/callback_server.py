@@ -7,13 +7,8 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import error, parse, request
 
-from .errors import BrokerError
-
-
-@dataclass(frozen=True)
-class CallbackPayload:
-    code: str
-    state: str
+from ...domain.auth import CallbackPayload
+from ...domain.errors import BrokerError
 
 
 def _build_html_response(title: str, message: str) -> str:
@@ -101,37 +96,6 @@ def _build_html_response(title: str, message: str) -> str:
   </main>
 </body>
 </html>"""
-
-
-def _normalize_input(value: str) -> parse.ParseResult:
-    trimmed = value.strip()
-    if not trimmed:
-        raise BrokerError(400, "Paste the full redirect URL containing code and state.")
-
-    parsed = parse.urlparse(trimmed)
-    if parsed.scheme and parsed.netloc:
-        return parsed
-
-    query_only = trimmed if trimmed.startswith("?") else f"?{trimmed}"
-    return parse.urlparse(f"http://localhost{query_only}")
-
-
-def parse_manual_callback_input(value: str, expected_state: str) -> CallbackPayload:
-    parsed = _normalize_input(value)
-    params = parse.parse_qs(parsed.query)
-    code = (params.get("code", [""])[0] or "").strip()
-    state = (params.get("state", [""])[0] or "").strip()
-
-    if not code:
-        raise BrokerError(400, "Redirect URL is missing the authorization code.")
-    if not state:
-        raise BrokerError(400, "Redirect URL is missing the state parameter.")
-    if state != expected_state:
-        raise BrokerError(400, "OAuth state mismatch. The login flow was rejected to prevent CSRF.")
-
-    return CallbackPayload(code=code, state=state)
-
-
 def _request_cancellation(host: str, port: int, cancel_path: str) -> None:
     target = f"http://{host}:{port}{cancel_path}"
     try:
@@ -264,3 +228,32 @@ class LocalCallbackServer:
                 threading.Thread(target=owner.close, daemon=True).start()
 
         return CallbackHandler
+
+
+@dataclass(frozen=True)
+class LoopbackCallbackServerFactory:
+    host: str
+    port: int
+    callback_path: str
+    cancel_path: str
+    timeout_seconds: float
+
+    def create(
+        self,
+        *,
+        expected_state: str,
+        success_title: str,
+        success_message: str,
+        on_callback,
+    ) -> LocalCallbackServer:
+        return LocalCallbackServer(
+            host=self.host,
+            port=self.port,
+            callback_path=self.callback_path,
+            cancel_path=self.cancel_path,
+            expected_state=expected_state,
+            timeout_seconds=self.timeout_seconds,
+            success_title=success_title,
+            success_message=success_message,
+            on_callback=on_callback,
+        )

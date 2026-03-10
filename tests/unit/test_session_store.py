@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from codex_bridge.session_store import AuthSessionStore, StoredAuthSession
+from codex_bridge.domain.auth import AuthSession
+from codex_bridge.infra.storage.session_store import FileSystemSessionStore
 
 
 class FakeKeyring:
@@ -27,13 +28,13 @@ class SessionStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             file_path = Path(temp_dir) / "auth" / "session.json"
             keyring = FakeKeyring()
-            store = AuthSessionStore(file_path, keyring_backend=keyring)
-            session = StoredAuthSession(
+            store = FileSystemSessionStore(file_path, keyring_backend=keyring)
+            session = AuthSession(
                 provider="codex",
-                accessToken="access",
-                refreshToken="refresh",
-                expiresAt=123,
-                updatedAt=456,
+                access_token="access",
+                refresh_token="refresh",
+                expires_at=123,
+                updated_at=456,
                 email="user@example.com",
             )
 
@@ -65,13 +66,13 @@ class SessionStoreTests(unittest.TestCase):
                 encoding="utf-8",
             )
             keyring = FakeKeyring()
-            store = AuthSessionStore(file_path, keyring_backend=keyring)
+            store = FileSystemSessionStore(file_path, keyring_backend=keyring)
 
             session = store.load()
 
             self.assertIsNotNone(session)
             assert session is not None
-            self.assertEqual(session.accessToken, "legacy-access")
+            self.assertEqual(session.access_token, "legacy-access")
             self.assertIn(("codex-bridge", "default"), keyring.storage)
 
 

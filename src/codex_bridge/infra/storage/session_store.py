@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .config import KEYRING_SERVICE_NAME, KEYRING_USERNAME
+from ...bootstrap.config import KEYRING_SERVICE_NAME, KEYRING_USERNAME
+from ...domain.auth import AuthSession
 
 
 def _load_optional_keyring() -> Any | None:
@@ -16,30 +17,7 @@ def _load_optional_keyring() -> Any | None:
     return keyring
 
 
-@dataclass
-class StoredAuthSession:
-    provider: str
-    accessToken: str
-    refreshToken: str
-    expiresAt: int
-    updatedAt: int
-    idToken: str | None = None
-    accountId: str | None = None
-    email: str | None = None
-    planType: str | None = None
-
-    def to_public(self) -> dict[str, object]:
-        return {
-            "provider": self.provider,
-            "accountId": self.accountId,
-            "email": self.email,
-            "planType": self.planType,
-            "expiresAt": self.expiresAt,
-            "updatedAt": self.updatedAt,
-        }
-
-
-class AuthSessionStore:
+class FileSystemSessionStore:
     def __init__(
         self,
         file_path: Path,
@@ -54,7 +32,7 @@ class AuthSessionStore:
         self._keyring_service = keyring_service
         self._keyring_username = keyring_username
 
-    def load(self) -> StoredAuthSession | None:
+    def load(self) -> AuthSession | None:
         session = self._load_from_keyring()
         if session:
             return session
@@ -77,7 +55,7 @@ class AuthSessionStore:
             self.save(loaded)
         return loaded
 
-    def save(self, session: StoredAuthSession) -> None:
+    def save(self, session: AuthSession) -> None:
         self._file_path.parent.mkdir(parents=True, exist_ok=True)
         if self._keyring_backend:
             self._keyring_backend.set_password(
@@ -88,12 +66,22 @@ class AuthSessionStore:
             payload = {
                 "version": 2,
                 "storage": "keyring",
-                "session": session.to_public(),
+                "session": session.to_public_dict(),
             }
         else:
             payload = {
                 "version": 1,
-                "session": asdict(session),
+                "session": {
+                    "provider": session.provider,
+                    "accessToken": session.access_token,
+                    "refreshToken": session.refresh_token,
+                    "expiresAt": session.expires_at,
+                    "updatedAt": session.updated_at,
+                    "idToken": session.id_token,
+                    "accountId": session.account_id,
+                    "email": session.email,
+                    "planType": session.plan_type,
+                },
             }
         temp_path = self._file_path.with_suffix(f"{self._file_path.suffix}.tmp")
         temp_path.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
@@ -113,7 +101,7 @@ class AuthSessionStore:
         temp_path.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
         temp_path.replace(self._file_path)
 
-    def _load_from_keyring(self) -> StoredAuthSession | None:
+    def _load_from_keyring(self) -> AuthSession | None:
         if not self._keyring_backend:
             return None
         try:
@@ -128,29 +116,35 @@ class AuthSessionStore:
             return None
         return self._parse_session(parsed)
 
-    def _parse_session(self, session: object) -> StoredAuthSession | None:
+    def _parse_session(self, session: object) -> AuthSession | None:
         if not isinstance(session, dict):
             return None
 
-        required = {
-            "provider": str,
-            "accessToken": str,
-            "refreshToken": str,
-            "expiresAt": int,
-            "updatedAt": int,
-        }
-        for key, expected_type in required.items():
-            if not isinstance(session.get(key), expected_type):
-                return None
+        access_token = session.get("accessToken", session.get("access_token"))
+        refresh_token = session.get("refreshToken", session.get("refresh_token"))
+        expires_at = session.get("expiresAt", session.get("expires_at"))
+        updated_at = session.get("updatedAt", session.get("updated_at"))
+        provider = session.get("provider")
 
-        return StoredAuthSession(
-            provider=session["provider"],
-            accessToken=session["accessToken"],
-            refreshToken=session["refreshToken"],
-            expiresAt=session["expiresAt"],
-            updatedAt=session["updatedAt"],
-            idToken=session.get("idToken"),
-            accountId=session.get("accountId"),
+        if not isinstance(provider, str):
+            return None
+        if not isinstance(access_token, str):
+            return None
+        if not isinstance(refresh_token, str):
+            return None
+        if not isinstance(expires_at, int):
+            return None
+        if not isinstance(updated_at, int):
+            return None
+
+        return AuthSession(
+            provider=provider,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expires_at=expires_at,
+            updated_at=updated_at,
+            id_token=session.get("idToken", session.get("id_token")),
+            account_id=session.get("accountId", session.get("account_id")),
             email=session.get("email"),
-            planType=session.get("planType"),
+            plan_type=session.get("planType", session.get("plan_type")),
         )
