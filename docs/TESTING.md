@@ -114,7 +114,18 @@ codex-bridge login
 ```bash
 codex-bridge chat "Reply with OK only."
 codex-bridge chat --stream "Reply with OK only."
+codex-bridge chat --interactive
 ```
+
+Inside the interactive session, validate the slash commands:
+
+- `/status`
+- `/reset`
+- `/model gpt-5.4`
+- `/reasoning medium`
+- `/logout`
+
+`/logout` should clear the saved local session and exit the interactive loop.
 
 6. Exercise the terminal-oriented commands:
 

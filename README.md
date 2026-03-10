@@ -81,6 +81,18 @@ Start an interactive terminal session:
 codex-bridge chat --interactive
 ```
 
+Interactive mode supports these slash commands:
+
+- `/help`
+- `/reset`
+- `/model <name>`
+- `/reasoning <level>`
+- `/status`
+- `/logout`
+- `/exit`
+
+Use `/logout` to clear the local session and leave the interactive chat immediately.
+
 Machine-readable output is available for structured commands:
 
 ```bash
@@ -183,6 +195,8 @@ codex-bridge chat "Reply with OK only."
 codex-bridge chat --stream "Reply with OK only."
 codex-bridge chat --interactive
 ```
+
+Inside `chat --interactive`, you can use `/logout` to clear the local session and exit the terminal chat.
 
 Or through HTTP:
 

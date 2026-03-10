@@ -170,7 +170,7 @@ def _run_interactive_chat(runtime, *, model: str, reasoning: str) -> None:
     messages: list[dict[str, str]] = []
 
     print("Interactive chat")
-    print("Commands: /help /reset /model <name> /reasoning <level> /status /exit")
+    print("Commands: /help /reset /model <name> /reasoning <level> /status /logout /exit")
 
     while True:
         try:
@@ -187,7 +187,7 @@ def _run_interactive_chat(runtime, *, model: str, reasoning: str) -> None:
         if prompt in {"/exit", "/quit"}:
             return
         if prompt == "/help":
-            print("Commands: /help /reset /model <name> /reasoning <level> /status /exit")
+            print("Commands: /help /reset /model <name> /reasoning <level> /status /logout /exit")
             continue
         if prompt == "/reset":
             messages.clear()
@@ -206,6 +206,11 @@ def _run_interactive_chat(runtime, *, model: str, reasoning: str) -> None:
             print(f"Reasoning: {active_reasoning}")
             print(f"Messages in context: {len(messages)}")
             continue
+        if prompt == "/logout":
+            runtime.auth_service.logout()
+            messages.clear()
+            print("Session cleared. Exiting interactive chat.")
+            return
 
         messages.append({"role": "user", "content": prompt})
         response = _stream_chat_to_stdout(

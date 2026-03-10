@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class CliE2ETests(unittest.TestCase):
-    def _run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
+    def _run_cli(self, *args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
         temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(temp_dir.cleanup)
         env = os.environ.copy()
@@ -26,6 +26,7 @@ class CliE2ETests(unittest.TestCase):
             env=env,
             text=True,
             capture_output=True,
+            input=input_text,
             check=True,
         )
 
@@ -50,6 +51,12 @@ class CliE2ETests(unittest.TestCase):
     def test_version_command_prints_package_version(self) -> None:
         result = self._run_cli("version")
         self.assertIn("codex-bridge", result.stdout)
+
+    def test_interactive_chat_supports_logout_command(self) -> None:
+        result = self._run_cli("chat", "--interactive", input_text="/logout\n")
+        self.assertIn("Interactive chat", result.stdout)
+        self.assertIn("/logout", result.stdout)
+        self.assertIn("Session cleared. Exiting interactive chat.", result.stdout)
 
 
 if __name__ == "__main__":
