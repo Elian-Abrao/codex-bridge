@@ -3,9 +3,16 @@ from __future__ import annotations
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Generator, Iterator
 
-from ..domain.agent import AgentEvent, AgentSession, normalize_permission_profile, normalize_session_mode
+from ..domain.agent import (
+    AgentEvent,
+    AgentSession,
+    build_agent_runtime_instructions,
+    normalize_permission_profile,
+    normalize_session_mode,
+    parse_tool_call,
+)
 from ..domain.codex import normalize_codex_model, normalize_reasoning_effort
 from ..domain.errors import BrokerError
 from ..domain.ports import AgentToolPort
@@ -13,6 +20,8 @@ from .chat_service import ChatService
 
 
 class AgentService:
+    MAX_TOOL_ROUNDS = 4
+
     def __init__(
         self,
         *,
@@ -165,59 +174,67 @@ class AgentService:
             },
         ).to_dict()
 
-        output_chunks: list[str] = []
-        try:
-            for event in self._chat_service.stream_chat(
-                {
-                    "model": session.model,
-                    "reasoningEffort": session.reasoning_effort,
-                    "messages": session.messages,
-                }
-            ):
-                kind = str(event.get("kind") or "")
-                if kind == "status":
-                    yield AgentEvent(
-                        session.id,
-                        "model.status",
-                        str(event.get("message") or "Connecting to Codex..."),
-                    ).to_dict()
-                    continue
-                if kind == "delta" and isinstance(event.get("delta"), str):
-                    delta = event["delta"]
-                    output_chunks.append(delta)
+        for _ in range(self.MAX_TOOL_ROUNDS):
+            output_text: str | None = None
+            try:
+                output_text = yield from self._run_model_round(session)
+            except BrokerError as exc:
+                yield AgentEvent(
+                    session.id,
+                    "error",
+                    str(exc),
+                    {"statusCode": exc.status_code},
+                ).to_dict()
+                return
+
+            if output_text is None:
+                return
+
+            tool_call = parse_tool_call(output_text) if session.mode == "agent" else None
+            if not tool_call:
+                session.messages.append({"role": "assistant", "content": output_text})
+                session.touch(self._now())
+                if output_text:
                     yield AgentEvent(
                         session.id,
                         "model.delta",
-                        delta,
+                        output_text,
                     ).to_dict()
-                    continue
-                if kind == "error":
-                    yield AgentEvent(
-                        session.id,
-                        "error",
-                        str(event.get("message") or "Codex returned an error."),
-                    ).to_dict()
-                    return
-        except BrokerError as exc:
+                yield AgentEvent(
+                    session.id,
+                    "turn.completed",
+                    "Codex responded.",
+                    {
+                        "outputText": output_text,
+                        "session": session.to_dict(),
+                    },
+                ).to_dict()
+                return
+
             yield AgentEvent(
                 session.id,
-                "error",
-                str(exc),
-                {"statusCode": exc.status_code},
+                "tool.requested",
+                f"Model requested `{tool_call.tool_name}`.",
+                {
+                    "tool": tool_call.tool_name,
+                },
             ).to_dict()
-            return
 
-        output_text = "".join(output_chunks)
-        session.messages.append({"role": "assistant", "content": output_text})
-        session.touch(self._now())
+            tool_completed = False
+            for tool_event in self.execute_tool(session.id, tool_call.tool_name, tool_call.input_payload):
+                yield tool_event
+                if tool_event.get("kind") == "error":
+                    return
+                if tool_event.get("kind") == "tool.completed":
+                    tool_completed = True
+            if not tool_completed:
+                return
+
         yield AgentEvent(
             session.id,
-            "turn.completed",
-            "Codex responded.",
-            {
-                "outputText": output_text,
-                "session": session.to_dict(),
-            },
+            "error",
+            "The agent reached the maximum number of local tool rounds for this turn.",
+            {"statusCode": 409},
         ).to_dict()
 
     def _resolve_cwd_for_new_session(self, workspace_root: Path, cwd: str | None) -> Path:
@@ -246,3 +263,54 @@ class AgentService:
         if not resolved.is_dir():
             raise BrokerError(400, f"Path is not a directory: {resolved}")
         return resolved
+
+    def _run_model_round(self, session: AgentSession) -> Generator[dict[str, object], None, str | None]:
+        request_messages = [
+            {
+                "role": "system",
+                "content": build_agent_runtime_instructions(
+                    session=session,
+                    tools=self._tools_for_session(session),
+                ),
+            },
+            *session.messages,
+        ]
+
+        output_chunks: list[str] = []
+        for event in self._chat_service.stream_chat(
+            {
+                "model": session.model,
+                "reasoningEffort": session.reasoning_effort,
+                "messages": request_messages,
+            }
+        ):
+            kind = str(event.get("kind") or "")
+            if kind == "status":
+                yield AgentEvent(
+                    session.id,
+                    "model.status",
+                    str(event.get("message") or "Connecting to Codex..."),
+                ).to_dict()
+                continue
+            if kind == "delta" and isinstance(event.get("delta"), str):
+                output_chunks.append(event["delta"])
+                continue
+            if kind == "error":
+                yield AgentEvent(
+                    session.id,
+                    "error",
+                    str(event.get("message") or "Codex returned an error."),
+                ).to_dict()
+                return None
+        return "".join(output_chunks)
+
+    def _tools_for_session(self, session: AgentSession):
+        visible = []
+        for tool in self._tools.values():
+            descriptor = tool.descriptor
+            if descriptor.requires_full_access and session.permission_profile != "full-access":
+                continue
+            if descriptor.requires_write and session.permission_profile == "read-only":
+                continue
+            visible.append(descriptor)
+        return visible

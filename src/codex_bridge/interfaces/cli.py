@@ -264,6 +264,17 @@ def _run_agent_turn(runtime, session_id: str, prompt: str) -> dict[str, object]:
         if kind == "model.status":
             print(f"[status] {event.get('message')}")
             continue
+        if kind == "tool.requested":
+            print(f"[agent] {event.get('message')}")
+            continue
+        if kind == "tool.started":
+            print(f"[tool] {event.get('message')}")
+            continue
+        if kind == "tool.output" and isinstance(event.get("message"), str):
+            print(event["message"])
+            continue
+        if kind == "tool.completed":
+            continue
         if kind == "model.delta" and isinstance(event.get("message"), str):
             chunk = event["message"]
             output_parts.append(chunk)

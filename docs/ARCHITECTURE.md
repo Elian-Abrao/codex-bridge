@@ -120,6 +120,7 @@ It introduces:
 - event-oriented execution for model turns and tool runs
 - permission profiles
 - local tools wired through a registry
+- a local tool-call loop inside the same agent turn
 
 Current permission profiles:
 
@@ -136,6 +137,13 @@ Current tools:
 Current primary interface:
 
 - `codex-bridge agent`
+
+Current tool-call behavior:
+
+- the model may request one local tool at a time
+- the runtime executes the tool locally
+- the tool output is injected back into the conversation as local system context
+- the turn continues automatically until the model returns a normal answer or the tool-round limit is reached
 
 ## API Contract
 

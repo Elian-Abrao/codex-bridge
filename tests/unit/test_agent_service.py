@@ -9,14 +9,21 @@ from codex_bridge.infra.tools import ReadFileTool, ShellTool, WriteFileTool
 
 
 class FakeChatService:
-    def __init__(self) -> None:
+    def __init__(self, responses: list[list[dict[str, object]]] | None = None) -> None:
         self.requests: list[dict[str, object]] = []
+        self.responses = responses or [
+            [
+                {"kind": "status", "message": "Connecting to codex..."},
+                {"kind": "delta", "delta": "Hello"},
+                {"kind": "delta", "delta": " world"},
+            ]
+        ]
 
     def stream_chat(self, request_payload: dict[str, object]):
         self.requests.append(request_payload)
-        yield {"kind": "status", "message": "Connecting to codex..."}
-        yield {"kind": "delta", "delta": "Hello"}
-        yield {"kind": "delta", "delta": " world"}
+        events = self.responses.pop(0) if self.responses else []
+        for event in events:
+            yield event
 
 
 class AgentServiceTests(unittest.TestCase):
@@ -37,6 +44,40 @@ class AgentServiceTests(unittest.TestCase):
         self.assertEqual(events[-1]["kind"], "turn.completed")
         self.assertEqual(events[-1]["outputText"], "Hello world")
         self.assertEqual(service.get_session(session.id).messages[-1]["content"], "Hello world")
+
+    def test_send_turn_can_execute_model_requested_tool(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            (workspace / "context.txt").write_text("agent context", encoding="utf-8")
+            service = AgentService(
+                chat_service=FakeChatService(
+                    responses=[
+                        [
+                            {"kind": "status", "message": "Connecting to codex..."},
+                            {
+                                "kind": "delta",
+                                "delta": '<tool_call>{"tool":"read_file","input":"context.txt"}</tool_call>',
+                            },
+                        ],
+                        [
+                            {"kind": "status", "message": "Connecting to codex..."},
+                            {"kind": "delta", "delta": "I inspected the file and I am ready."},
+                        ],
+                    ]
+                ),
+                tools=[ReadFileTool(), WriteFileTool(), ShellTool()],
+                workspace_root=workspace,
+                now=lambda: 1_000,
+            )
+            session = service.create_session(mode="agent", permission_profile="read-only")
+
+            events = list(service.send_turn(session.id, "Inspect the file"))
+
+            self.assertTrue(any(event["kind"] == "tool.requested" for event in events))
+            self.assertTrue(any(event["kind"] == "tool.output" for event in events))
+            self.assertEqual(events[-1]["kind"], "turn.completed")
+            self.assertEqual(events[-1]["outputText"], "I inspected the file and I am ready.")
+            self.assertIn("agent context", service.get_session(session.id).messages[-2]["content"])
 
     def test_workspace_write_can_write_and_read_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

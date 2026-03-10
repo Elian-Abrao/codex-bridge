@@ -139,6 +139,8 @@ Inside `agent`, validate the first local-runtime commands:
 - `/permissions full-access`
 - `/shell pwd`
 
+The automatic model-driven tool loop is covered in unit tests. See `tests/unit/test_agent_service.py` for the case where the model requests `read_file`, the runtime executes it, and the same turn resumes with a final answer.
+
 6. Exercise the terminal-oriented commands:
 
 ```bash

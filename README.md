@@ -107,6 +107,7 @@ The initial agent mode supports:
 - session state
 - permission profiles: `read-only`, `workspace-write`, `full-access`
 - local tools: `read_file`, `write_file`, `shell`
+- model-driven local tool rounds inside the same agent turn
 
 Core agent commands:
 
@@ -117,6 +118,8 @@ Core agent commands:
 - `/read <path>`
 - `/write <path> <content>`
 - `/shell <command>`
+
+In `agent` mode, Codex can now request a local tool during the turn. The runtime executes the tool, injects the tool output back into the session context, and continues the same turn automatically.
 
 Machine-readable output is available for structured commands:
 

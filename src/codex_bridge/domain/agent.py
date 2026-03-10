@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 
 VALID_PERMISSION_PROFILES = ("read-only", "workspace-write", "full-access")
 VALID_SESSION_MODES = ("chat", "agent")
+TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
 
 
 def normalize_permission_profile(value: str | None) -> str:
@@ -58,6 +61,12 @@ class ToolDescriptor:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolCall:
+    tool_name: str
+    input_payload: Any
+
+
+@dataclass(frozen=True, slots=True)
 class ToolResult:
     tool_name: str
     output_text: str
@@ -106,3 +115,58 @@ class AgentSession:
             "updatedAt": self.updated_at,
             "messageCount": len(self.messages),
         }
+
+
+def parse_tool_call(text: str) -> ToolCall | None:
+    match = TOOL_CALL_RE.search(text.strip())
+    if not match:
+        return None
+
+    try:
+        payload = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    tool_name = payload.get("tool")
+    if not isinstance(tool_name, str) or not tool_name.strip():
+        return None
+
+    return ToolCall(
+        tool_name=tool_name.strip(),
+        input_payload=payload.get("input"),
+    )
+
+
+def build_agent_runtime_instructions(*, session: AgentSession, tools: list[ToolDescriptor]) -> str:
+    tool_lines = []
+    for tool in tools:
+        suffix: list[str] = []
+        if tool.requires_write:
+            suffix.append("requires workspace-write")
+        if tool.requires_full_access:
+            suffix.append("requires full-access")
+        details = f" ({', '.join(suffix)})" if suffix else ""
+        tool_lines.append(f"- {tool.name}: {tool.description}{details}")
+
+    return "\n".join(
+        [
+            "## Local agent runtime",
+            f"- Mode: {session.mode}",
+            f"- Permissions: {session.permission_profile}",
+            f"- Workspace root: {session.workspace_root}",
+            f"- Current working directory: {session.cwd}",
+            "",
+            "## Available local tools",
+            *tool_lines,
+            "",
+            "## Tool call protocol",
+            "- If you need a local tool, reply with exactly one XML block and no markdown fence.",
+            '- Format: <tool_call>{"tool":"read_file","input":"README.md"}</tool_call>',
+            '- The `input` field may be a string or an object, depending on the tool.',
+            "- After a tool runs, tool output will be added back into the conversation as local context.",
+            "- If no tool is needed, answer normally.",
+        ]
+    )
