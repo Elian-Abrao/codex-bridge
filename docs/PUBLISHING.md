@@ -1,60 +1,64 @@
 # Publishing Guide
 
-This repository now has two Python distributions:
+This repository has two Python distributions:
 
-- `codex-bridge`: the Python-first local broker runtime in [`/broker`](../broker/README.md)
-- `codex-bridge-sdk`: the Python SDK client in [`/python`](../python/README.md)
+- `codex-bridge`: the broker runtime in the repository root
+- `codex-bridge-sdk`: the Python SDK client in [`/sdk`](../sdk/README.md)
 
 ## Local Build
 
 From the repository root:
 
 ```bash
-npm run package:broker
-npm run package:sdk
+python3 -m pip install build
 ```
 
-These commands require:
+Build the broker:
 
 ```bash
-python3 -m pip install build
+python3 -m build .
+```
+
+Build the SDK:
+
+```bash
+python3 -m build sdk
 ```
 
 ## Broker Package
 
 Broker source:
 
-- [`broker/pyproject.toml`](../broker/pyproject.toml)
-- [`broker/src/codex_bridge_broker`](../broker/src/codex_bridge_broker)
+- [`pyproject.toml`](../pyproject.toml)
+- [`src/codex_bridge`](../src/codex_bridge)
 
 Install locally:
 
 ```bash
-pip install ./broker
+pip install .
 ```
 
 Install with secure storage support:
 
 ```bash
-pip install './broker[secure]'
+pip install '.[secure]'
 ```
 
 Installed CLI entrypoints:
 
 - `codex-bridge`
-- `codex-bridge-broker`
 
 ## SDK Package
 
 SDK source:
 
-- [`python/pyproject.toml`](../python/pyproject.toml)
-- [`python/src/codex_bridge`](../python/src/codex_bridge)
+- [`sdk/pyproject.toml`](../sdk/pyproject.toml)
+- [`sdk/src/codex_bridge_sdk`](../sdk/src/codex_bridge_sdk)
 
 Install locally:
 
 ```bash
-pip install ./python
+pip install ./sdk
 ```
 
 Published package name:
@@ -68,28 +72,26 @@ pip install codex-bridge-sdk
 1. Run validation:
 
 ```bash
-npm run build
-npm run test:python
-npm run test:python:broker
+PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'
+PYTHONPATH=sdk/src python -m unittest discover -s sdk/tests -p 'test_*.py'
 ```
 
 2. Build both Python distributions:
 
 ```bash
-npm run package:broker
-npm run package:sdk
+python3 -m build .
+python3 -m build sdk
 ```
 
 3. Upload with `twine`:
 
 ```bash
 python3 -m pip install twine
-python3 -m twine upload broker/dist/*
-python3 -m twine upload python/dist/*
+python3 -m twine upload dist/*
+python3 -m twine upload sdk/dist/*
 ```
 
 ## Notes
 
 - The broker is the main product package.
-- The SDK is published separately to keep the runtime and client concerns clean.
-- The Node runtime remains in the repository only as a transitional compatibility path.
+- The SDK is published separately to keep runtime and client concerns clean.

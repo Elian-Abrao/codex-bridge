@@ -1,54 +1,34 @@
 # codex-bridge Agent Guide
 
-This repository is being repositioned.
+## Product Identity
 
-## Product Direction
+- `codex-bridge` is a Python-only local Codex broker.
+- The broker is the primary product.
+- The SDK under `sdk/` is a separate Python client package for the broker.
+- The public API is versioned under `/v1`.
+- The public product scope is Codex-only.
 
-- Treat `codex-bridge` as a local Codex broker.
-- The target product is Python-first.
-- The product scope is Codex-only.
-- The broker is the main deliverable.
-- The CLI exists to operate the broker.
-- SDKs exist to consume the broker over HTTP.
+## Repository Layout
 
-## Current Reality
-
-- The current production-ready implementation still lives mostly in Node.js.
-- The Python broker under `broker/` is the migration target, not full parity yet.
-- The Python SDK under `python/` is a client package.
-- Electron integration is transitional and should not drive new public-facing architecture decisions.
+- `src/codex_bridge/`: broker runtime, auth flow, CLI, HTTP API, transport
+- `tests/`: broker tests
+- `sdk/`: Python SDK package and examples
+- `docs/`: architecture and release documentation
 
 ## Engineering Rules
 
-- Prefer Codex-specific naming and contracts over generic provider abstractions in new code.
-- Do not add new providers unless explicitly requested.
-- Prefer `/v1` routes for all public HTTP contracts.
-- Maintain backward compatibility in the Node bridge only when needed to avoid breaking current consumers.
-- Keep SDKs thin. Broker logic belongs in the broker, not in the clients.
-- Favor clear operational behavior over framework cleverness.
-
-## Repository Intent
-
-- `broker/`: target Python broker runtime and CLI
-- `python/`: Python SDK client for the broker
-- `src/server/`: current Node broker runtime
-- `src/client/`: current Node client SDK
-- `src/main/` and `src/preload/`: transitional Electron integration
-
-## Refactor Priorities
-
-1. Establish Python broker package structure and versioned HTTP API.
-2. Move public documentation toward Codex-only broker messaging.
-3. Reduce the prominence of Node/Electron paths in product-facing docs.
-4. Isolate or retire OpenAI and Gemini code paths once Python broker parity exists.
+- Do not reintroduce Node, Electron, or multi-provider abstractions.
+- Prefer explicit Codex naming over generic provider terminology in new code.
+- Keep broker logic in the broker package. Keep the SDK thin.
+- Treat the HTTP API as the main integration boundary.
+- Favor operational clarity over framework complexity.
 
 ## Delivery Standard
 
-Call the project professionally deliverable only when it has:
+The repository should stay:
 
-- a canonical Python broker runtime
-- a versioned public API
-- automated tests for broker behavior
-- secure session storage strategy
-- documented CLI workflows
-- thin, documented SDKs
+- Python-only
+- Codex-only
+- CLI-operable
+- API-versioned
+- documented for local use and publishing
