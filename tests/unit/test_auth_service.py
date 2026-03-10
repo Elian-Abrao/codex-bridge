@@ -39,8 +39,10 @@ class FakeCallbackServer:
 class FakeCallbackServerFactory:
     def __init__(self) -> None:
         self.server = FakeCallbackServer()
+        self.last_kwargs: dict[str, object] | None = None
 
-    def create(self, **_: object) -> FakeCallbackServer:
+    def create(self, **kwargs: object) -> FakeCallbackServer:
+        self.last_kwargs = kwargs
         return self.server
 
 
@@ -112,6 +114,10 @@ class AuthServiceTests(unittest.TestCase):
         ticket = auth_service.start_login()
         self.assertEqual(ticket.id, "login-1")
         self.assertTrue(callback_factory.server.started)
+        self.assertIsNotNone(callback_factory.last_kwargs)
+        assert callback_factory.last_kwargs is not None
+        self.assertEqual(callback_factory.last_kwargs["success_title"], "Codex-Bridge connected")
+        self.assertIn("continue automatically", str(callback_factory.last_kwargs["success_message"]))
 
         auth_service.finish_login_from_callback(ticket.id, CallbackPayload(code="code-123", state=ticket.state))
 

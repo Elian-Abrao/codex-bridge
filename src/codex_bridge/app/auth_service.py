@@ -80,8 +80,8 @@ class AuthService:
         try:
             callback_server = self._callback_server_factory.create(
                 expected_state=ticket.state,
-                success_title="Access granted",
-                success_message="codex-bridge is now authorized. You can return to your terminal or app and continue.",
+                success_title="Codex-Bridge connected",
+                success_message="Your Codex session is ready. You can close this window and return to Codex-Bridge. The terminal or app will continue automatically.",
                 on_callback=lambda payload: self.finish_login_from_callback(ticket.id, payload),
             )
             callback_server.start()

@@ -21,13 +21,39 @@ def _build_html_response(title: str, message: str) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{safe_title}</title>
   <style>
+    @font-face {{
+      font-display: swap;
+      font-family: "OpenAI Sans";
+      font-style: normal;
+      font-weight: 400;
+      src: url("https://cdn.openai.com/common/fonts/openai-sans/v3/OpenAISans-Regular.woff2") format("woff2");
+    }}
+    @font-face {{
+      font-display: swap;
+      font-family: "OpenAI Sans";
+      font-style: normal;
+      font-weight: 500;
+      src: url("https://cdn.openai.com/common/fonts/openai-sans/v3/OpenAISans-Medium.woff2") format("woff2");
+    }}
+    @font-face {{
+      font-display: swap;
+      font-family: "OpenAI Sans";
+      font-style: normal;
+      font-weight: 600;
+      src: url("https://cdn.openai.com/common/fonts/openai-sans/v3/OpenAISans-Semibold.woff2") format("woff2");
+    }}
     :root {{
       color-scheme: light;
-      --bg: #f4efe4;
-      --ink: #14211f;
-      --muted: #586461;
-      --card: rgba(255, 252, 246, 0.92);
-      --accent: #1c8c63;
+      --bg: #f7f7f4;
+      --panel: rgba(255, 255, 255, 0.94);
+      --ink: #171717;
+      --muted: #5f5f5c;
+      --border: rgba(23, 23, 23, 0.08);
+      --shadow: rgba(16, 24, 40, 0.08);
+      --accent: #10a37f;
+      --accent-soft: rgba(16, 163, 127, 0.12);
+      --button: #111111;
+      --button-hover: #1a1a1a;
     }}
     * {{ box-sizing: border-box; }}
     body {{
@@ -35,64 +61,143 @@ def _build_html_response(title: str, message: str) -> str:
       min-height: 100vh;
       display: grid;
       place-items: center;
-      padding: 24px;
+      padding: 28px;
       background:
-        radial-gradient(circle at top left, rgba(28, 140, 99, 0.18), transparent 30%),
-        radial-gradient(circle at bottom right, rgba(15, 107, 74, 0.16), transparent 32%),
-        linear-gradient(160deg, #f6f1e7 0%, #efe6d5 45%, #e9dfcb 100%);
+        radial-gradient(circle at top left, rgba(16, 163, 127, 0.10), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(16, 163, 127, 0.08), transparent 32%),
+        linear-gradient(180deg, #fbfbf8 0%, #f4f4ef 100%);
       color: var(--ink);
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-family: "OpenAI Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }}
+    .shell {{
+      width: min(760px, 100%);
+      padding: 28px;
+      border-radius: 32px;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.72));
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(16px);
     }}
     .card {{
-      width: min(720px, 100%);
-      padding: 32px 30px 26px;
+      width: 100%;
+      padding: 28px 28px 24px;
       border-radius: 28px;
-      border: 1px solid rgba(20, 33, 31, 0.08);
-      background: var(--card);
-      box-shadow: 0 28px 80px rgba(20, 33, 31, 0.14);
+      border: 1px solid var(--border);
+      background: var(--panel);
+      box-shadow: 0 16px 48px var(--shadow);
+    }}
+    .badge {{
+      width: 48px;
+      height: 48px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(16, 163, 127, 0.12);
     }}
     .eyebrow {{
-      display: inline-block;
-      padding: 8px 14px;
-      border-radius: 999px;
-      background: rgba(28, 140, 99, 0.16);
-      color: #0f6b4a;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
     }}
     h1 {{
-      margin: 22px 0 10px;
-      font-size: clamp(32px, 6vw, 56px);
-      line-height: 0.96;
-      letter-spacing: -0.04em;
+      margin: 10px 0 12px;
+      font-size: clamp(32px, 6vw, 52px);
+      line-height: 1;
+      letter-spacing: -0.045em;
+      font-weight: 600;
     }}
     p {{
       margin: 0;
-      font-size: 17px;
-      line-height: 1.6;
+      font-size: 16px;
+      line-height: 1.65;
       color: var(--muted);
     }}
+    .meta {{
+      margin-top: 22px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: #f8f8f5;
+      border: 1px solid rgba(23, 23, 23, 0.06);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }}
+    .meta strong {{
+      color: var(--ink);
+      font-weight: 500;
+    }}
+    .actions {{
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }}
     button {{
-      margin-top: 28px;
       border: 0;
       border-radius: 999px;
       padding: 13px 18px;
-      background: linear-gradient(180deg, #20996c, #0f6b4a);
-      color: #f7fff9;
+      background: var(--button);
+      color: #ffffff;
       font: inherit;
-      font-weight: 700;
+      font-weight: 500;
       cursor: pointer;
+      transition: background 120ms ease, transform 120ms ease;
+    }}
+    button:hover {{
+      background: var(--button-hover);
+      transform: translateY(-1px);
+    }}
+    .hint {{
+      color: var(--muted);
+      font-size: 14px;
+    }}
+    @media (max-width: 640px) {{
+      .shell {{
+        padding: 14px;
+        border-radius: 24px;
+      }}
+      .card {{
+        padding: 22px 20px 20px;
+      }}
     }}
   </style>
+  <script>
+    window.addEventListener("load", function () {{
+      setTimeout(function () {{
+        try {{
+          window.close();
+        }} catch (error) {{
+          return;
+        }}
+      }}, 700);
+    }});
+  </script>
 </head>
 <body>
-  <main class="card">
-    <div class="eyebrow">Codex Bridge Authorized</div>
-    <h1>{safe_title}</h1>
-    <p>{safe_message}</p>
-    <button type="button" onclick="window.close()">Close this tab</button>
+  <main class="shell">
+    <section class="card">
+      <div class="badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+          <path d="M6.5 12.5l3.25 3.25L17.5 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </div>
+      <div class="eyebrow">Signed in with ChatGPT</div>
+      <h1>{safe_title}</h1>
+      <p>{safe_message}</p>
+      <div class="meta">
+        <strong>What happens next?</strong><br />
+        Codex-Bridge already received the authorization callback. If you started the login from the terminal, it should continue automatically without pressing Enter.
+      </div>
+      <div class="actions">
+        <button type="button" onclick="window.close()">Close window</button>
+        <span class="hint">You can safely return to your terminal or app.</span>
+      </div>
+    </section>
   </main>
 </body>
 </html>"""

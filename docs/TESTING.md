@@ -109,6 +109,8 @@ curl http://127.0.0.1:47831/v1/providers/codex/options
 codex-bridge login
 ```
 
+If the local callback works, the CLI should finish the login automatically without pressing Enter in the terminal.
+
 5. Send a prompt:
 
 ```bash

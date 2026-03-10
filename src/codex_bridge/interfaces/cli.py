@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import queue
 import sys
+import threading
 import time
 import webbrowser
 from importlib import metadata
@@ -252,14 +254,51 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _wait_for_session(runtime, expires_at: int) -> dict[str, object]:
-    while int(time.time() * 1000) < expires_at:
-        state = runtime.auth_service.get_state().to_dict()
-        if state.get("session"):
-            return state
-        if not state.get("activeLogin"):
-            return state
-        time.sleep(1)
+def _collect_manual_callback_input(result_queue: "queue.SimpleQueue[str]", stop_event: threading.Event) -> None:
+    if stop_event.wait(5):
+        return
+    try:
+        value = input(
+            "Automatic callback not detected yet. Paste the final redirect URL only if the browser did not return to the broker automatically: "
+        ).strip()
+    except EOFError:
+        value = ""
+    if not stop_event.is_set():
+        result_queue.put(value)
+
+
+def _wait_for_login_completion(runtime, *, expires_at: int, allow_manual_prompt: bool) -> dict[str, object]:
+    manual_input_queue: "queue.SimpleQueue[str]" = queue.SimpleQueue()
+    stop_event = threading.Event()
+    manual_input_thread: threading.Thread | None = None
+
+    if allow_manual_prompt and sys.stdin.isatty():
+        manual_input_thread = threading.Thread(
+            target=_collect_manual_callback_input,
+            args=(manual_input_queue, stop_event),
+            daemon=True,
+        )
+        manual_input_thread.start()
+
+    try:
+        while int(time.time() * 1000) < expires_at:
+            while True:
+                try:
+                    redirect_url = manual_input_queue.get_nowait()
+                except queue.Empty:
+                    break
+                if redirect_url:
+                    runtime.auth_service.complete_manual_login(redirect_url)
+
+            state = runtime.auth_service.get_state().to_dict()
+            if state.get("session") or not state.get("activeLogin"):
+                return state
+            time.sleep(0.25)
+    finally:
+        stop_event.set()
+        if manual_input_thread and manual_input_thread.is_alive():
+            manual_input_thread.join(timeout=0.1)
+
     return runtime.auth_service.get_state().to_dict()
 
 
@@ -287,22 +326,9 @@ def _run_login(*, as_json: bool, open_browser: bool) -> None:
         print("Open this URL in your browser:")
     print(auth_url)
     print(f"Expected redirect: {redirect_uri}")
+    print("Waiting for the browser callback. If the local callback succeeds, the terminal will continue automatically.")
 
-    callback = input(
-        "If the browser shows 'Access granted', just press Enter. Paste the final redirect URL only if automatic callback fails: "
-    ).strip()
-
-    if callback:
-        runtime.auth_service.complete_manual_login(callback)
-        result = runtime.auth_service.get_state().to_dict()
-        if as_json:
-            _print_json(result)
-        else:
-            print("Login completed.")
-            _print_auth_summary(result)
-        return
-
-    final_state = _wait_for_session(runtime, expires_at)
+    final_state = _wait_for_login_completion(runtime, expires_at=expires_at, allow_manual_prompt=not as_json)
     if not final_state.get("session"):
         raise BrokerError(408, "Login was not completed within the timeout.")
     if as_json:

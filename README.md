@@ -53,6 +53,8 @@ Start the login flow:
 codex-bridge login
 ```
 
+When the local browser callback succeeds, the CLI completes the login automatically. You do not need to press Enter in the terminal.
+
 Start the local broker:
 
 ```bash
@@ -187,6 +189,8 @@ curl http://127.0.0.1:47831/v1/providers/codex/options
 ```bash
 codex-bridge login
 ```
+
+If the browser reaches the success page, the login should finish automatically in the terminal without extra input.
 
 6. Send a real prompt:
 
