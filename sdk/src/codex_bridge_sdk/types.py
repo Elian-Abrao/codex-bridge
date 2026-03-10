@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-ProviderId = Literal["codex", "openai", "gemini"]
 BridgeReasoningEffort = Literal["none", "low", "medium", "high", "xhigh"]
 ChatRole = Literal["system", "user", "assistant"]
 
@@ -68,7 +67,6 @@ class BridgeCodexCapabilitiesResponse(TypedDict, total=False):
 
 
 class BridgeChatRequest(TypedDict, total=False):
-    provider: ProviderId
     model: str
     messages: list[ChatMessage]
     reasoningEffort: BridgeReasoningEffort
@@ -78,34 +76,34 @@ class BridgeChatRequest(TypedDict, total=False):
 
 class BridgeChatResponse(TypedDict):
     requestId: str
-    provider: ProviderId
+    provider: Literal["codex"]
     model: str
     outputText: str
 
 
 class StreamStatusEvent(TypedDict):
     requestId: str
-    provider: ProviderId
+    provider: Literal["codex"]
     kind: Literal["status"]
     message: str
 
 
 class StreamDeltaEvent(TypedDict):
     requestId: str
-    provider: ProviderId
+    provider: Literal["codex"]
     kind: Literal["delta"]
     delta: str
 
 
 class StreamDoneEvent(TypedDict):
     requestId: str
-    provider: ProviderId
+    provider: Literal["codex"]
     kind: Literal["done"]
 
 
 class StreamErrorEvent(TypedDict):
     requestId: str
-    provider: ProviderId
+    provider: Literal["codex"]
     kind: Literal["error"]
     message: str
 

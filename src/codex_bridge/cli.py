@@ -12,10 +12,10 @@ from .server import run_server
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="codex-bridge-broker")
+    parser = argparse.ArgumentParser(prog="codex-bridge")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    serve_parser = subparsers.add_parser("serve", help="Start the Python broker.")
+    serve_parser = subparsers.add_parser("serve", help="Start the broker.")
     serve_parser.add_argument("--host", default=DEFAULT_BIND_HOST)
     serve_parser.add_argument("--port", type=int, default=DEFAULT_BIND_PORT)
 

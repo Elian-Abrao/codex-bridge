@@ -166,7 +166,6 @@ class CodexBridgeClient:
         timeout: float | None = None,
     ) -> BridgeChatResponse:
         request_id: str | None = None
-        provider = str(request_payload.get("provider") or "codex")
         output_text = ""
         stream_error: str | None = None
 
@@ -174,7 +173,6 @@ class CodexBridgeClient:
             if request_id is None:
                 request_id = str(event["requestId"])
 
-            provider = str(event["provider"])
             kind = str(event["kind"])
 
             if kind == "delta":
@@ -199,7 +197,7 @@ class CodexBridgeClient:
         raw_model = str(request_payload.get("model") or "").strip()
         return {
             "requestId": request_id,
-            "provider": provider,  # type: ignore[typeddict-item]
+            "provider": "codex",
             "model": raw_model or DEFAULT_BRIDGE_MODEL,
             "outputText": output_text,
         }

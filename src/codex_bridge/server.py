@@ -16,7 +16,7 @@ def _format_sse_event(event: dict[str, object]) -> bytes:
 
 def create_handler(runtime: BrokerRuntime) -> type[BaseHTTPRequestHandler]:
     class BrokerHandler(BaseHTTPRequestHandler):
-        server_version = "codex-bridge-broker/0.1.0"
+        server_version = "codex-bridge/1.0.0"
 
         def do_GET(self) -> None:  # noqa: N802
             self._handle()
@@ -87,7 +87,7 @@ def run_server(
 ) -> None:
     active_runtime = runtime or create_runtime()
     server = ThreadingHTTPServer((host, port), create_handler(active_runtime))
-    print(f"codex-bridge python broker listening on http://{host}:{port}", flush=True)
+    print(f"codex-bridge listening on http://{host}:{port}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

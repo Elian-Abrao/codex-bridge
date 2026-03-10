@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from codex_bridge_broker.session_store import AuthSessionStore, StoredAuthSession
+from codex_bridge.session_store import AuthSessionStore, StoredAuthSession
 
 
 class FakeKeyring:

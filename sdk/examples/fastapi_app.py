@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from codex_bridge import BridgeClientError, BridgeHttpError, CodexBridgeClient
+from codex_bridge_sdk import BridgeClientError, BridgeHttpError, CodexBridgeClient
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -19,7 +19,6 @@ class ChatMessageModel(BaseModel):
 
 class ChatRequestModel(BaseModel):
     model: str | None = None
-    provider: str | None = None
     reasoning_effort: str | None = Field(default=None, alias="reasoningEffort")
     messages: list[ChatMessageModel]
     temperature: float | None = None
@@ -32,8 +31,6 @@ class ChatRequestModel(BaseModel):
 
         if self.model:
             payload["model"] = self.model
-        if self.provider:
-            payload["provider"] = self.provider
         if self.reasoning_effort:
             payload["reasoningEffort"] = self.reasoning_effort
         if self.temperature is not None:
@@ -135,7 +132,7 @@ def bridge_chat_stream(request_model: ChatRequestModel) -> StreamingResponse:
                 yield _format_sse_event(
                     {
                         "requestId": "proxy",
-                        "provider": str(payload.get("provider") or "codex"),
+                        "provider": "codex",
                         "kind": "error",
                         "message": str(exc),
                         "statusCode": exc.status_code,
@@ -147,7 +144,7 @@ def bridge_chat_stream(request_model: ChatRequestModel) -> StreamingResponse:
                 yield _format_sse_event(
                     {
                         "requestId": "proxy",
-                        "provider": str(payload.get("provider") or "codex"),
+                        "provider": "codex",
                         "kind": "error",
                         "message": str(exc),
                     }

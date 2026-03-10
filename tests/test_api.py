@@ -9,9 +9,9 @@ from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from codex_bridge_broker.config import BRIDGE_API_PREFIX, load_config
-from codex_bridge_broker.runtime import create_runtime
-from codex_bridge_broker.server import create_handler
+from codex_bridge.config import BRIDGE_API_PREFIX, load_config
+from codex_bridge.runtime import create_runtime
+from codex_bridge.server import create_handler
 
 
 class BrokerApiTests(unittest.TestCase):

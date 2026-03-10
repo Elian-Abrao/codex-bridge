@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 from urllib import error
 
-from codex_bridge import BridgeClientError, BridgeHttpError, CodexBridgeClient
+from codex_bridge_sdk import BridgeClientError, BridgeHttpError, CodexBridgeClient
 
 
 class FakeResponse:
@@ -38,7 +38,7 @@ class CodexBridgeClientTests(unittest.TestCase):
             captured["timeout"] = timeout
             return FakeResponse(body='{"ok": true, "service": "codex-bridge"}')
 
-        with patch("codex_bridge.client.request.urlopen", side_effect=fake_urlopen):
+        with patch("codex_bridge_sdk.client.request.urlopen", side_effect=fake_urlopen):
             payload = self.client.health()
 
         self.assertTrue(payload["ok"])
@@ -54,7 +54,7 @@ class CodexBridgeClientTests(unittest.TestCase):
             captured["body"] = req.data.decode("utf-8") if req.data else ""
             return FakeResponse(body='{"session": {"email": "user@example.com"}}')
 
-        with patch("codex_bridge.client.request.urlopen", side_effect=fake_urlopen):
+        with patch("codex_bridge_sdk.client.request.urlopen", side_effect=fake_urlopen):
             response = self.client.complete_login(
                 "http://localhost:1455/auth/callback?code=abc&state=def"
             )
@@ -76,7 +76,7 @@ class CodexBridgeClientTests(unittest.TestCase):
             fp=io.BytesIO(b'{"error":"Instructions are required"}'),
         )
 
-        with patch("codex_bridge.client.request.urlopen", side_effect=http_error):
+        with patch("codex_bridge_sdk.client.request.urlopen", side_effect=http_error):
             with self.assertRaises(BridgeHttpError) as ctx:
                 self.client.chat({"messages": [{"role": "user", "content": "Oi"}]})
 
@@ -139,7 +139,7 @@ class CodexBridgeClientTests(unittest.TestCase):
             ]
         )
 
-        with patch("codex_bridge.client.request.urlopen", return_value=response):
+        with patch("codex_bridge_sdk.client.request.urlopen", return_value=response):
             events = list(
                 self.client.iter_stream_chat(
                     {"messages": [{"role": "user", "content": "Oi"}]}
@@ -155,7 +155,7 @@ class CodexBridgeClientTests(unittest.TestCase):
     def test_iter_stream_chat_rejects_malformed_payload(self) -> None:
         response = FakeResponse(lines=[b"data: not-json\n", b"\n"])
 
-        with patch("codex_bridge.client.request.urlopen", return_value=response):
+        with patch("codex_bridge_sdk.client.request.urlopen", return_value=response):
             with self.assertRaises(BridgeClientError) as ctx:
                 list(
                     self.client.iter_stream_chat(
