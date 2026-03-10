@@ -64,12 +64,30 @@ Inspect current state:
 ```bash
 codex-bridge status
 codex-bridge models
+codex-bridge whoami
+codex-bridge doctor
+codex-bridge version
 ```
 
 Send a quick chat request:
 
 ```bash
 codex-bridge chat "Explain this repository."
+```
+
+Start an interactive terminal session:
+
+```bash
+codex-bridge chat --interactive
+```
+
+Machine-readable output is available for structured commands:
+
+```bash
+codex-bridge --json status
+codex-bridge --json doctor
+codex-bridge --json models
+codex-bridge --json whoami
 ```
 
 ## HTTP API
@@ -162,6 +180,8 @@ codex-bridge login
 
 ```bash
 codex-bridge chat "Reply with OK only."
+codex-bridge chat --stream "Reply with OK only."
+codex-bridge chat --interactive
 ```
 
 Or through HTTP:

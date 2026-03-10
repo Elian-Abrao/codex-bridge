@@ -113,6 +113,17 @@ codex-bridge login
 
 ```bash
 codex-bridge chat "Reply with OK only."
+codex-bridge chat --stream "Reply with OK only."
+```
+
+6. Exercise the terminal-oriented commands:
+
+```bash
+codex-bridge whoami
+codex-bridge models
+codex-bridge doctor
+codex-bridge version
+codex-bridge --json status
 ```
 
 Or through HTTP:

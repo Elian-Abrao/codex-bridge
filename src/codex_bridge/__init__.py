@@ -7,6 +7,7 @@ from .bootstrap.config import (
 from .bootstrap.runtime import BrokerRuntime, create_runtime
 from .domain.codex import DEFAULT_CODEX_MODEL, DEFAULT_REASONING_EFFORT
 from .interfaces.http.server import run_server
+from .version import PACKAGE_VERSION
 
 __all__ = [
     "BRIDGE_API_PREFIX",
@@ -16,6 +17,7 @@ __all__ = [
     "DEFAULT_CODEX_MODEL",
     "DEFAULT_REASONING_EFFORT",
     "BrokerRuntime",
+    "PACKAGE_VERSION",
     "create_runtime",
     "run_server",
 ]
